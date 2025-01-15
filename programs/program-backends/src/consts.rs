@@ -1,0 +1,4 @@
+pub const INITIAL_PRICE_DIVIDER: u64 = 800_000;       
+pub const INITIAL_LAMPORTS_FOR_POOL: u64 = 10_000_000;   
+pub const TOKEN_SELL_LIMIT_PERCENT: u64 = 8000;  
+pub const PROPORTION: u64 = 1280;    
