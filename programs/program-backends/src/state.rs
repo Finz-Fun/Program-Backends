@@ -29,7 +29,7 @@ impl CurveConfiguration {
 
 #[account]
 pub struct LiquidityProvider {
-    pub shares: u64, // The number of shares this provider holds in the liquidity pool ( didnt add to contract now )
+    pub shares: u64, 
 }
 
 impl LiquidityProvider {
@@ -41,12 +41,12 @@ impl LiquidityProvider {
 
 #[account]
 pub struct LiquidityPool {
-    pub creator: Pubkey,    // Public key of the pool creator
-    pub token: Pubkey,      // Public key of the token in the liquidity pool
-    pub total_supply: u64,  // Total supply of liquidity tokens
-    pub reserve_token: u64, // Reserve amount of token in the pool
-    pub reserve_sol: u64,   // Reserve amount of sol_token in the pool
-    pub bump: u8,           // Nonce for the program-derived address
+    pub creator: Pubkey,    
+    pub token: Pubkey,      
+    pub total_supply: u64,  
+    pub reserve_token: u64, 
+    pub reserve_sol: u64,   
+    pub bump: u8,           
 }
 
 impl LiquidityPool {
@@ -105,7 +105,6 @@ pub trait LiquidityPoolAccount<'info> {
 
     fn buy(
         &mut self,
-        // bonding_configuration_account: &Account<'info, CurveConfiguration>,
         token_accounts: (
             &mut Account<'info, Mint>,
             &mut Account<'info, TokenAccount>,
@@ -122,7 +121,6 @@ pub trait LiquidityPoolAccount<'info> {
 
     fn sell(
         &mut self,
-        // bonding_configuration_account: &Account<'info, CurveConfiguration>,
         token_accounts: (
             &mut Account<'info, Mint>,
             &mut Account<'info, TokenAccount>,
@@ -231,7 +229,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             token_accounts.1.amount as u64,
             token_program,
         )?;
-        // let amount = self.to_account_info().lamports() - self.get_lamports();
         let amount = pool_sol_vault.to_account_info().lamports() as u64;
         self.transfer_sol_from_pool(pool_sol_vault, authority, amount, bump, system_program)?;
 
@@ -436,7 +433,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         bump: u8,
         system_program: &Program<'info, System>,
     ) -> Result<()> {
-        // let pool_account_info = self.to_account_info();
 
         system_program::transfer(
             CpiContext::new_with_signer(
@@ -448,8 +444,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
                 &[&[
                     LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
                     self.token.key().as_ref(),
-                    // LiquidityPool::POOL_SEED_PREFIX.as_bytes(),
-                    // self.token.key().as_ref(),
                     &[bump],
                 ]],
             ),
@@ -465,7 +459,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         amount: u64,
         system_program: &Program<'info, System>,
     ) -> Result<()> {
-        // let pool_account_info = self.to_account_info();
 
         system_program::transfer(
             CpiContext::new(

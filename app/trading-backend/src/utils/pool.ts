@@ -4,6 +4,7 @@ import { AiAgent } from '../idl/ai_agent';
 import { PoolData } from '../types';
 
 const POOL_SEED_PREFIX = "liquidity_pool";
+const VIRTUAL_SOL = new BN(25_000_000_000); 
 
 export async function fetchPoolData(
   program: Program<AiAgent>,
@@ -18,18 +19,19 @@ export async function fetchPoolData(
 
     const stateData = await program.account.liquidityPool.fetch(poolPda);
     const reserveSol = stateData.reserveSol;
-    const reserveToken = stateData.reserveToken;
-    const tokenDecimals = 9;
-
-    const reserveTokenScaled = reserveToken.div(new BN(Math.pow(10, tokenDecimals)));
     
-
-    const price = parseInt(reserveSol.toString()) / parseInt(reserveTokenScaled.toString());
+    // Add virtual SOL to real SOL reserves to get mcap
+    const totalSolWithVirtual = reserveSol.add(VIRTUAL_SOL);
+    console.log(totalSolWithVirtual.toString())
+    
+    // Convert to SOL (divide by 1e9)
+    const mcapInSol = parseInt(totalSolWithVirtual.toString())/ parseInt((new BN(1_000_000_000)).toString());
+    console.log(mcapInSol)
 
     return {
-      price,
+      price: mcapInSol, // Price field now contains mcap in SOL
       reserveSol: parseInt(reserveSol.toString()),
-      reserveToken: parseInt(reserveTokenScaled.toString())
+      reserveToken: parseInt((stateData.reserveToken).toString())
     };
   } catch (error) {
     console.error('Error fetching pool data:', error);
