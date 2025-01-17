@@ -240,7 +240,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 
     fn buy(
         &mut self,
-        // _bonding_configuration_account: &Account<'info, CurveConfiguration>,
         token_accounts: (
             &mut Account<'info, Mint>,
             &mut Account<'info, TokenAccount>,
@@ -252,21 +251,20 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
-        fees:f64
+        fees: f64
     ) -> Result<()> {
         if amount == 0 {
             return err!(CustomError::InvalidAmount);
         }
-
-        msg!("Trying to buy from the pool");
-
-        if fees < 0.0 || fees > 100.0 {
-            return err!(CustomError::InvalidFeePercentage);
+        if self.reserve_token < amount {
+            return err!(CustomError::NotEnoughTokenInVault);
         }
+
+    
         let fee_amount = (amount as f64) * (fees / 100.0);
         let adjusted_amount = (amount as f64) * (1.0 - fees / 100.0);
 
-
+    
         let ix = transfer(authority.key, team_account.key, fee_amount as u64);
         invoke(
             &ix,
@@ -277,17 +275,21 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             ],
         )?;
 
-        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0;
-        msg!("bought_amount {}", bought_amount);
+    
+        let virtual_sol = 25_000_000_000.0; 
+        
+
+        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
+            + virtual_sol / 1_000_000_000.0;
+        msg!("Current bought amount (with virtual): {}", bought_amount);
 
         let root_val = (PROPORTION as f64 * adjusted_amount as f64 / 1_000_000_000.0 + bought_amount * bought_amount).sqrt();
-        msg!("root_val {}", root_val);
+        msg!("Root value: {}", root_val);
 
-        let amount_out_f64 = (root_val - bought_amount as f64) * 1_000_000.0 * 1_000_000_000.0;
-        msg!("amount_out_f64 {}", amount_out_f64);
+        let amount_out_f64 = (root_val - bought_amount) * 1_000_000.0 * 1_000_000_000.0;
+        msg!("Tokens out: {}", amount_out_f64);
 
         let amount_out = amount_out_f64.round() as u64;
-        msg!("amount_out {}", amount_out);
 
         if amount_out > self.reserve_token {
             return err!(CustomError::NotEnoughTokenInVault);
@@ -296,14 +298,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.reserve_sol += adjusted_amount as u64;
         self.reserve_token -= amount_out;
 
-        self.transfer_sol_to_pool(authority, pool_sol_vault, amount, system_program)?;
 
-        self.transfer_token_from_pool(
-            token_accounts.1,
-            token_accounts.2,
-            amount_out,
-            token_program,
-        )?;
+        self.transfer_sol_to_pool(authority, pool_sol_vault, amount, system_program)?;
+        self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out, token_program)?;
+
         Ok(())
     }
 
@@ -321,34 +319,34 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
-        fees:f64
+        fees: f64
     ) -> Result<()> {
         if amount == 0 {
             return err!(CustomError::InvalidAmount);
         }
 
-        if self.reserve_token < amount {
-            return err!(CustomError::TokenAmountToSellTooBig);
-        }
+        let virtual_sol = 25_000_000_000.0; 
 
-        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0;
-        msg!("bought_amount: {}", bought_amount);
+        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
+            + virtual_sol / 1_000_000_000.0;
+        msg!("Current bought amount (with virtual): {}", bought_amount);
 
-        let result_amount =
-            (self.total_supply as f64 - self.reserve_token as f64 - amount as f64) / 1_000_000.0 / 1_000_000_000.0;
-        msg!("result_amount: {}", result_amount);
+        let result_amount = (self.total_supply as f64 - self.reserve_token as f64 - amount as f64) / 1_000_000.0 / 1_000_000_000.0 
+            + virtual_sol / 1_000_000_000.0;
+        msg!("Result amount: {}", result_amount);
 
-        let amount_out_f64 =
-            (bought_amount * bought_amount - result_amount * result_amount) / PROPORTION as f64 * 1_000_000_000.0;
-        msg!("amount_out_f64: {}", amount_out_f64);
+        let amount_out_f64 = (bought_amount * bought_amount - result_amount * result_amount) / PROPORTION as f64 * 1_000_000_000.0;
+        msg!("SOL out: {}", amount_out_f64);
+
 
         if fees < 0.0 || fees > 100.0 {
             return err!(CustomError::InvalidFeePercentage);
         }
 
         let adjusted_amount = amount_out_f64 * (1.0 - fees / 100.0);
-        let fee_amount:f64 = amount_out_f64*(fees / 100.0);
+        let fee_amount: f64 = amount_out_f64 * (fees / 100.0);
 
+ 
         system_program::transfer(
             CpiContext::new_with_signer(
                 system_program.to_account_info(),
@@ -359,8 +357,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
                 &[&[
                     LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
                     self.token.key().as_ref(),
-                    // LiquidityPool::POOL_SEED_PREFIX.as_bytes(),
-                    // self.token.key().as_ref(),
                     &[bump],
                 ]],
             ),
@@ -368,19 +364,13 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         )?;
 
         let amount_out = adjusted_amount.round() as u64;
-        msg!("amount_out: {}", amount_out);
 
         if self.reserve_sol < amount_out {
             return err!(CustomError::NotEnoughSolInVault);
         }
 
-        self.transfer_token_to_pool(
-            token_accounts.2,
-            token_accounts.1,
-            amount as u64,
-            authority,
-            token_program,
-        )?;
+ 
+        self.transfer_token_to_pool(token_accounts.2, token_accounts.1, amount, authority, token_program)?;
 
         self.reserve_token += amount;
         self.reserve_sol -= amount_out_f64.round() as u64;
