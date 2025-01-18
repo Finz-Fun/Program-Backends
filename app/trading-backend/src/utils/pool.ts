@@ -20,16 +20,14 @@ export async function fetchPoolData(
     const stateData = await program.account.liquidityPool.fetch(poolPda);
     const reserveSol = stateData.reserveSol;
     
-    // Add virtual SOL to real SOL reserves to get mcap
     const totalSolWithVirtual = reserveSol.add(VIRTUAL_SOL);
     console.log(totalSolWithVirtual.toString())
     
-    // Convert to SOL (divide by 1e9)
     const mcapInSol = parseInt(totalSolWithVirtual.toString())/ parseInt((new BN(1_000_000_000)).toString());
     console.log(mcapInSol)
 
     return {
-      price: mcapInSol, // Price field now contains mcap in SOL
+      price: mcapInSol,
       reserveSol: parseInt(reserveSol.toString()),
       reserveToken: parseInt((stateData.reserveToken).toString())
     };
