@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-ai_agent = "26G1JR5TvhtCZzMwn6qVfAhJwVTCkWDeo7THoxPgH1NW"
+ai_agent = "4VoftnsA8NCis8Lra6QkvfpeZzJFGn7HfnrY9vyDu5nj"
 
 [registry]
 url = "https://api.apr.dev"

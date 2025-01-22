@@ -14,8 +14,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: BLOCKCHAIN_IDS.devnet,actionVersion:2}));
-app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: BLOCKCHAIN_IDS.devnet,actionVersion:2}));
+app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
+app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
 
 
 
