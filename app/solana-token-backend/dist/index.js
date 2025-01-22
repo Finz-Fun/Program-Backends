@@ -202,14 +202,9 @@ const fetchPoolData = (tokenMint) => __awaiter(void 0, void 0, void 0, function*
         const VIRTUAL_SOL = new anchor_1.BN(25000000000);
         const mint = new web3_js_1.PublicKey(tokenMint);
         const [poolPda] = web3_js_1.PublicKey.findProgramAddressSync([Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()], program.programId);
-        console.log(poolPda);
         const stateData = yield program.account.liquidityPool.fetch(poolPda);
-        console.log(stateData);
         const reserveSol = stateData.reserveSol;
-        const reserveToken = stateData.reserveToken;
-        const total_supply = stateData.totalSupply;
         const totalSolWithVirtual = reserveSol.add(VIRTUAL_SOL);
-        console.log(totalSolWithVirtual.toString());
         const mcapInSol = parseInt(totalSolWithVirtual.toString()) / parseInt((new anchor_1.BN(1000000000)).toString());
         return { price: mcapInSol };
     }
@@ -342,7 +337,6 @@ app.post('/api/blinks/:tokenMint/sell', (req, res) => __awaiter(void 0, void 0, 
         const { tokenMint } = req.params;
         const { amount, percentage } = req.query;
         const { account } = req.body;
-        console.log('Sell request:', { tokenMint, account, amount, percentage });
         if (!amount && !percentage) {
             throw new Error('Either amount or percentage is required');
         }
@@ -351,7 +345,6 @@ app.post('/api/blinks/:tokenMint/sell', (req, res) => __awaiter(void 0, void 0, 
         const userTokenAccount = yield (0, spl_token_1.getAssociatedTokenAddress)(mint, userPubkey, false);
         try {
             const tokenBalance = yield connection.getTokenAccountBalance(userTokenAccount);
-            console.log('Token balance:', tokenBalance.value);
             if (!tokenBalance.value.amount || tokenBalance.value.amount === '0') {
                 throw new Error('No tokens to sell');
             }
@@ -371,10 +364,6 @@ app.post('/api/blinks/:tokenMint/sell', (req, res) => __awaiter(void 0, void 0, 
                 }
                 sellMessage = `Sell ${amount} tokens`;
             }
-            console.log('Selling:', {
-                totalBalance: tokenBalance.value.amount,
-                amountToSell: tokenAmount.toString()
-            });
             const [poolPda] = web3_js_1.PublicKey.findProgramAddressSync([Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()], program.programId);
             const [poolSolVault, bump] = web3_js_1.PublicKey.findProgramAddressSync([Buffer.from(SOL_VAULT_PREFIX), mint.toBuffer()], program.programId);
             const poolTokenAccount = yield (0, spl_token_1.getAssociatedTokenAddress)(mint, poolPda, true);
