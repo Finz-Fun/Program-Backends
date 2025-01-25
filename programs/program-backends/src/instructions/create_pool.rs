@@ -31,7 +31,7 @@ pub struct CreateLiquidityPool<'info> {
     pub token_mint: Box<Account<'info, Mint>>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         associated_token::mint = token_mint,
         associated_token::authority = pool

@@ -12,12 +12,13 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>) -> Result<()> {
     let token_accounts = (
         &mut *ctx.accounts.token_mint,
         &mut *ctx.accounts.pool_token_account,
-        &mut *ctx.accounts.user_token_account,
+        &mut *ctx.accounts.platform_token_account,
     );
 
     pool.add_liquidity(
         token_accounts,
         &mut ctx.accounts.pool_sol_vault,
+        &ctx.accounts.platform_authority,
         &ctx.accounts.user,
         &ctx.accounts.token_program,
         &ctx.accounts.system_program,
@@ -47,11 +48,10 @@ pub struct AddLiquidity<'info> {
     #[account(
         mut,
         associated_token::mint = token_mint,
-        associated_token::authority = user,
+        associated_token::authority = platform_authority,
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub platform_token_account: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK:
     #[account(
         mut,
         seeds = [LiquidityPool::SOL_VAULT_PREFIX.as_bytes(), token_mint.key().as_ref()],
@@ -60,6 +60,7 @@ pub struct AddLiquidity<'info> {
     pub pool_sol_vault: AccountInfo<'info>,
 
     #[account(mut)]
+    pub platform_authority: Signer<'info>,
     pub user: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,

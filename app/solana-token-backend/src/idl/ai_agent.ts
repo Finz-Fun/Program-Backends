@@ -98,7 +98,7 @@ export type AiAgent = {
           "isSigner": false
         },
         {
-          "name": "userTokenAccount",
+          "name": "platformTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -108,8 +108,13 @@ export type AiAgent = {
           "isSigner": false
         },
         {
-          "name": "user",
+          "name": "platformAuthority",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -478,8 +483,7 @@ export type AiAgent = {
   ]
 };
 
-
-const idl =  {
+export const IDL: AiAgent = {
   "version": "0.1.0",
   "name": "ai_agent",
   "instructions": [
@@ -579,7 +583,7 @@ const idl =  {
           "isSigner": false
         },
         {
-          "name": "userTokenAccount",
+          "name": "platformTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -589,8 +593,13 @@ const idl =  {
           "isSigner": false
         },
         {
-          "name": "user",
+          "name": "platformAuthority",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -826,7 +835,7 @@ const idl =  {
   ],
   "accounts": [
     {
-      "name": "CurveConfiguration",
+      "name": "curveConfiguration",
       "type": {
         "kind": "struct",
         "fields": [
@@ -838,7 +847,7 @@ const idl =  {
       }
     },
     {
-      "name": "LiquidityPool",
+      "name": "liquidityPool",
       "type": {
         "kind": "struct",
         "fields": [
@@ -956,10 +965,5 @@ const idl =  {
       "name": "InvalidFeePercentage",
       "msg": "Invalid fee percentage. It must be between 0.0 and 100.0."
     }
-  ],
-  "metadata": {
-    "address": "DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa"
-  }
-}
-
-export const idljson = JSON.stringify(idl)
+  ]
+};

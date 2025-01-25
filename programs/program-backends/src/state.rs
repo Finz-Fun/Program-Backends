@@ -83,7 +83,8 @@ pub trait LiquidityPoolAccount<'info> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        authority: &Signer<'info>,
+        platform_authority: &Signer<'info>,
+        user: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
     ) -> Result<()>;
@@ -186,7 +187,8 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        authority: &Signer<'info>,
+        platform_authority: &Signer<'info>,
+        user: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
     ) -> Result<()> {
@@ -194,12 +196,12 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             token_accounts.2,
             token_accounts.1,
             token_accounts.0.supply,
-            authority,
+            platform_authority,
             token_program,
         )?;
 
         self.transfer_sol_to_pool(
-            authority,
+            user,
             pool_sol_vault,
             INITIAL_LAMPORTS_FOR_POOL,
             system_program,

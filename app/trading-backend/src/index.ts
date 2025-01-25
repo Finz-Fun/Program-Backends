@@ -7,7 +7,7 @@ import { Candle, PriceUpdate } from './types';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import {  subscribeToPoolUpdates, unsubscribeFromPool } from './utils/pool';
 import { AnchorProvider, Program, Wallet,BN } from '@coral-xyz/anchor';
-import { AiAgent, idljson } from './idl/ai_agent';
+import { AiAgent, IDL } from './idl/ai_agent';
 import rateLimit from 'express-rate-limit';
 
 const app = express();
@@ -36,7 +36,6 @@ const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY || '';
 
 const wallet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(WALLET_PRIVATE_KEY)));
 const provider = new AnchorProvider(connection, new Wallet(wallet), {});
-const IDL = JSON.parse(idljson);
 const program = new Program<AiAgent>(IDL, PROGRAM_ID, provider);
 
 const limiter = rateLimit({

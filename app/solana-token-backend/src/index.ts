@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram } from '@solana/web3.js';
 import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
-import {AiAgent, idljson } from './idl/ai_agent';
+import {AiAgent, IDL } from './idl/ai_agent';
 import * as dotenv from 'dotenv';
 import { ASSOCIATED_PROGRAM_ID } from '@coral-xyz/anchor/dist/cjs/utils/token';
 import {actionCorsMiddleware, ACTIONS_CORS_HEADERS, BLOCKCHAIN_IDS} from "@solana/actions"
@@ -27,7 +27,6 @@ const wallet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(WALLET_PRIVATE_K
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 const readOnlyProvider = new AnchorProvider(connection, new Wallet(wallet), {});
 const programId = new PublicKey(process.env.PROGRAM_ID as any);
-const IDL = JSON.parse(idljson);
 const program = new Program<AiAgent>(IDL, programId, readOnlyProvider);
 
 const curveSeed = "CurveConfiguration"
@@ -76,103 +75,7 @@ const teamAccount = new PublicKey("6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"
 // });
 
 
-app.get("/create-token-and-add-liquidity", async (req, res) => {
-  try {
-    const {user_key} = req.body
 
-    console.log("Creating a new token...");
-    const user = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(user_key)));
-    const mint = await createMint(connection, user, user.publicKey, null, 9); // 9 decimals
-    console.log(mint.toBase58())
-
-    const amount = new BN(1000000000).mul(new BN(10 ** 9))
-
-
-    console.log("Getting user's associated token account...");
-    const userTokenAccount = await getOrCreateAssociatedTokenAccount(connection, user, mint, user.publicKey)
-
-    console.log("Minting tokens to the user...");
-    await mintTo(connection, user, mint, userTokenAccount.address, user, BigInt(amount.toString()));
-
-    console.log("Creating the pool PDA...");
-    const [poolPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()],
-      program.programId
-    );
-
-    const [poolSolVault] = PublicKey.findProgramAddressSync(
-      [Buffer.from(SOL_VAULT_PREFIX), mint.toBuffer()],
-      program.programId
-    );
-
-    const poolTokenAccount = await getAssociatedTokenAddress(
-      mint, poolPda, true
-    )
-
-    const tx1 = new Transaction()
-    .add(
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
-      await program.methods
-        .createPool()
-        .accounts({
-          pool: poolPda,
-          tokenMint: mint,
-          poolTokenAccount: poolTokenAccount,
-          payer: user.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-          associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
-        })
-        .instruction()
-    )
-    console.log(user.publicKey.toBase58())
-    tx1.feePayer = user.publicKey
-    tx1.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-    console.log(await connection.simulateTransaction(tx1))
-    const sig = await sendAndConfirmTransaction(connection, tx1, [user], { skipPreflight: true })
-    console.log("Successfully created pool : ", `https://solscan.io/tx/${sig}?cluster=devnet`)
-
-    // Step 5: Add Liquidity
-    console.log("Adding liquidity to the pool...");
-    const tx = new Transaction().add(
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
-      await program.methods
-        .addLiquidity()
-        .accounts({
-          pool: poolPda,
-          poolSolVault: poolSolVault,
-          tokenMint: mint,
-          poolTokenAccount: poolTokenAccount,
-          userTokenAccount: userTokenAccount.address,
-          user: user.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: SystemProgram.programId,
-        })
-        .instruction()
-    );
-
-    tx.feePayer = user.publicKey;
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    const signature = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true });
-
-    console.log(`Transaction successful: https://solscan.io/tx/${signature}?cluster=devnet`);
-
-    res.json({
-      success: true,
-      message: "Token created, minted to user, pool created, and liquidity added successfully.",
-      tokenMintAddress: mint.toBase58(),
-      transactionSignature: signature,
-    });
-  } catch (error:any) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 
 // Remove liquidity route
