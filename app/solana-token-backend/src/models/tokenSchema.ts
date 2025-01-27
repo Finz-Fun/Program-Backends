@@ -10,6 +10,10 @@ const tokenSchema = new mongoose.Schema({
     required: false, 
     unique: true 
   },
+  secretKey: {
+    type: String,
+    required: false,
+  },
   name: {
     type: String,
     required: true,

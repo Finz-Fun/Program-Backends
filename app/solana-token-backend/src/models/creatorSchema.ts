@@ -50,10 +50,6 @@ const CreatorSchema = new Schema<ICreator>({
   //   type: Number, 
   //   default: 0 
   // },
-  tokens: [{ 
-    type: Schema.Types.ObjectId,
-    ref: 'Token'
-  }],
   walletAddress: { 
     type: String 
   },

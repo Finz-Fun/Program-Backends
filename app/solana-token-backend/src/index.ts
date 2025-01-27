@@ -22,6 +22,8 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
 import Creator from './models/creatorSchema';
 import { connectDB } from './db';
+import nodeHtmlToImage from 'node-html-to-image';
+import { Token } from './models/tokenSchema';
 
 dotenv.config();
 
@@ -80,7 +82,7 @@ async function uploadToS3(
   symbol: string, 
   imageBuffer: Buffer,
   contentType: string
-): Promise<string> {
+): Promise<{metadataUri: string, imageUrl: string}> {
   try {
 
     const uniqueId = uuidv4();
@@ -112,14 +114,14 @@ async function uploadToS3(
       ACL: 'public-read'
     }));
 
-    return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${metadataKey}`;
+    return {metadataUri: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${metadataKey}`, imageUrl: imageUrl}
   } catch (error) {
     console.error('Error uploading to S3:', error);
     throw error;
   }
 }
 
-import nodeHtmlToImage from 'node-html-to-image';
+
 
 interface TweetData {
   name: string;
@@ -386,15 +388,42 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
 
 app.post("/create-token", async (req, res) => {
   try {
-    const { name, symbol, image } = req.body;
+    const { tokenName, symbol } = req.query;
 
-    const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
-    const contentType = image.split(';')[0].split(':')[1];
+    const tweetData = {
+      tweetId: String(req.body.tweetId || '1234567890'),
+      name: String(req.body.name || 'John Doe'),
+      username: String(req.body.username || 'johndoe'),
+      content: String(req.body.content || 'Hello, World!'),
+      timestamp: String(req.body.timestamp || '2h'),
+      replies: Number(req.body.replies || 0),
+      retweets: Number(req.body.retweets || 0),
+      likes: Number(req.body.likes || 0),
+      creator: String(req.body.creator || ''),
+    };
+    console.log("Tweet data:", tweetData);
+    console.log("Token name:", tokenName);
+    console.log("Symbol:", symbol);
+    const imageBuffer = await generateTweetImage(tweetData);
+
+    // const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
+    // const contentType = image.split(';')[0].split(':')[1];
+    const contentType = "image/png"
 
     const mintKeypair = Keypair.generate();
 
-    const metadataUri = await uploadToS3(name, symbol, imageBuffer, contentType);
+    const {metadataUri, imageUrl} = await uploadToS3(tokenName as string, symbol as string, imageBuffer, contentType);
     console.log("Metadata URI:", metadataUri);
+    await Token.create({
+      creator: tweetData.creator,
+      name:tokenName,
+      symbol,
+      metadataUri,
+      imageUrl: imageUrl,
+      tweetId: tweetData.tweetId,
+      mintAddress: mintKeypair.publicKey.toBase58(),
+      secretKey: Buffer.from(mintKeypair.secretKey).toString('base64')
+    })
 
     
 
@@ -424,7 +453,8 @@ app.post("/create-token", async (req, res) => {
     res.json({
       success: true,
       secretKey: Buffer.from(mintKeypair.secretKey).toString('base64'),
-      name,
+      tokenMint: mintKeypair.publicKey.toBase58(),
+      name: tokenName,
       symbol,
       metaData: metadataUri
     });
