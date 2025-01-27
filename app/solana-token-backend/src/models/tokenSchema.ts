@@ -30,6 +30,10 @@ const tokenSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  metadataUri: {
+    type: String,
+    required: true,
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -41,6 +45,10 @@ const tokenSchema = new mongoose.Schema({
   isActive: { 
     type: Boolean, 
     default: true 
+  },
+  liquidity: {
+    type: Boolean,
+    default: false
   }
 });
 

@@ -468,7 +468,10 @@ app.post("/create-token", async (req, res) => {
 
 app.post("/create-add-liquidity-transaction", async (req, res) => {
   try {
-    const { secretKey, account, solAmount, name, symbol, metadataUri } = req.body; 
+    const { mintAddress, solAmount, account} = req.body; 
+
+    const token = await Token.findOne({mintAddress})
+    const secretKey = token?.secretKey as string
     const secretKeyUint8Array = Uint8Array.from(
       Buffer.from(secretKey, 'base64')
     );
@@ -499,9 +502,9 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
     const TOTAL_SUPPLY = new BN(1000000000).mul(new BN(10 ** 9))
 
     const tokenMetadata = {
-      name,
-      symbol,
-      uri: metadataUri
+      name: token?.name as string,
+      symbol: token?.symbol as string,
+      uri: token?.metadataUri as string
     };
 
     const metadataAccountAddress = findMetadataPda(umi, {
@@ -676,6 +679,7 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 
 
