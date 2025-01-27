@@ -1,9 +1,13 @@
 import mongoose from 'mongoose';
 
 const tokenSchema = new mongoose.Schema({
+  creator: {
+    type: String,
+    required: true,
+  },
   mintAddress: { 
     type: String, 
-    required: true, 
+    required: false, 
     unique: true 
   },
   name: {
@@ -15,6 +19,10 @@ const tokenSchema = new mongoose.Schema({
     required: true,
   },
   tweetId: {
+    type: String,
+    required: true,
+  },
+  imageUrl: {
     type: String,
     required: true,
   },

@@ -20,6 +20,8 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { base58 } from '@metaplex-foundation/umi/serializers'
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
+import Creator from './models/creatorSchema';
+import { connectDB } from './db';
 
 dotenv.config();
 
@@ -34,6 +36,8 @@ app.use(express.json());
 
 app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
 app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
+
+connectDB()
 
 
 
@@ -113,6 +117,241 @@ async function uploadToS3(
     console.error('Error uploading to S3:', error);
     throw error;
   }
+}
+
+import nodeHtmlToImage from 'node-html-to-image';
+
+interface TweetData {
+  name: string;
+  username: string;
+  content: string;
+  timestamp: string;
+  replies: number;
+  retweets: number;
+  likes: number;
+}
+
+async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
+  const html = `
+    <html>
+      <head>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          html, body {
+            width: 598px;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: black;
+            overflow: hidden;
+            height: fit-content;
+          }
+          
+          .tweet {
+            background-color: black;
+            color: white;
+            padding: 16px;
+            max-width: 598px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            margin: 0;
+          }
+          
+          .metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            margin-bottom: 0;
+            color: rgb(113, 118, 123);
+            max-width: 425px;
+          }
+          .container {
+            display: flex;
+          }
+          .avatar-container {
+            flex-shrink: 0;
+            margin-right: 12px;
+          }
+          .avatar {
+            width: 40px;
+            height: 40px;
+          }
+          .avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 9999px;
+            object-fit: cover;
+          }
+          .content-container {
+            flex: 1;
+            min-width: 0;
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .user-info {
+            display: flex;
+            align-items: center;
+          }
+          .name {
+            font-weight: 700;
+            font-size: 15px;
+            color: white;
+          }
+          .username {
+            color: rgb(113, 118, 123);
+            font-size: 15px;
+            margin-left: 4px;
+          }
+          .dot {
+            color: rgb(113, 118, 123);
+            margin: 0 4px;
+          }
+          .timestamp {
+            color: rgb(113, 118, 123);
+            font-size: 15px;
+          }
+          .more-button {
+            color: rgb(113, 118, 123);
+          }
+          .more-button svg {
+            width: 20px;
+            height: 20px;
+          }
+          .tweet-content {
+            margin-top: 4px;
+            font-size: 15px;
+            line-height: 1.3;
+            white-space: pre-wrap;
+            color: white;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            margin-bottom: 12px;
+          }
+          .metric {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+          }
+          .metric-content {
+            display: flex;
+            align-items: center;
+          }
+          .metric svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+          }
+          .metric span {
+            font-size: 14px;
+            margin-left: 8px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="tweet">
+          <div class="container">
+            <div class="avatar-container">
+              <div class="avatar">
+                <img src="https://pbs.twimg.com/profile_images/1683325380441128960/yRsRRjGO_400x400.jpg" alt="Avatar" />
+              </div>
+            </div>
+            <div class="content-container">
+              <div class="header">
+                <div class="user-info">
+                  <span class="name">${tweetData.name}</span>
+                  <span class="username">@${tweetData.username}</span>
+                  <span class="dot">·</span>
+                  <span class="timestamp">${tweetData.timestamp}</span>
+                </div>
+                <div class="more-button">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z" />
+                  </svg>
+                </div>
+              </div>
+              
+              <div class="tweet-content">${tweetData.content}</div>
+
+              <div class="metrics">
+                <div class="metric">
+                  <div class="metric-content">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"/>
+                    </svg>
+                    <span>${tweetData.replies}</span>
+                  </div>
+                </div>
+                
+                <div class="metric">
+                  <div class="metric-content">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z" />
+                    </svg>
+                    <span>${tweetData.retweets}</span>
+                  </div>
+                </div>
+                
+                <div class="metric">
+                  <div class="metric-content">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91z"/>
+                    </svg>
+                    <span>${tweetData.likes}</span>
+                  </div>
+                </div>
+
+                <div class="metric">
+                  <div class="metric-content">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="metric">
+                  <div class="metric-content">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Adjust height calculation to be more precise
+  const contentLength = tweetData.content.length;
+  const lineHeight = 20;
+  const charsPerLine = 60;
+  const estimatedLines = Math.ceil(contentLength / charsPerLine);
+  const baseHeight = 120; // Further reduced base height
+  const estimatedHeight = baseHeight + (estimatedLines * lineHeight);
+
+  const image = await nodeHtmlToImage({
+    html,
+    quality: 100,
+    type: 'png',
+    puppeteerArgs: {
+      defaultViewport: {
+        width: 598,
+        height: estimatedHeight,
+      },
+    },
+  });
+
+  return image as Buffer;
 }
 
 // Initialize route
@@ -671,7 +910,6 @@ const fetchPoolData = async (tokenMint:string)=>{
 
 const fetchReserveToken = async (tokenMint:string)=>{
   try{
-    const VIRTUAL_SOL = new BN(25_000_000_000);
     const mint = new PublicKey(tokenMint)
     const [poolPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()],
@@ -966,6 +1204,67 @@ app.get('/api/:tokenMint/pool-data', async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+
+app.get('/generate', async (req: Request, res: Response) => {
+  try {
+    const tweetData = {
+      name: String(req.query.name || 'John Doe'),
+      username: String(req.query.username || 'johndoe'),
+      content: String(req.query.content || 'Hello, World!'),
+      timestamp: String(req.query.timestamp || '2h'),
+      replies: Number(req.query.replies || 0),
+      retweets: Number(req.query.retweets || 0),
+      likes: Number(req.query.likes || 0),
+    };
+
+    const imageBuffer = await generateTweetImage(tweetData);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.send(imageBuffer);
+
+  } catch (error) {
+    console.error('Error generating tweet image:', error);
+    res.status(500).json({
+      error: 'Failed to generate image',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+
+app.put('/api/creators/agent-status', async (req: Request, res: Response) => {
+  try {
+    const { twitterId, agentEnabled } = req.body;
+
+    // Find and update the creator
+    const creator = await Creator.findOneAndUpdate(
+      { twitterId },
+      { agentEnabled },
+      { new: true } // Return the updated document
+    );
+
+    if (!creator) {
+      res.status(404).json({ error: 'Creator not found' });
+      return
+    }
+
+    // Return the updated creator
+    res.json({
+      success: true,
+      agentEnabled: creator.agentEnabled,
+      message: `AI agent ${agentEnabled ? 'enabled' : 'disabled'} successfully`
+    });
+    return
+
+  } catch (error) {
+    console.error('Error updating agent status:', error);
+    res.status(500).json({ error: 'Failed to update agent status' });
+  }
+});
+
+
 
 app.get('/actions.json', (req: Request, res: Response) => {
   res.json({

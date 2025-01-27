@@ -1,11 +1,30 @@
 import mongoose from 'mongoose';
 
-// Token Schema
 const tokenSchema = new mongoose.Schema({
+  creator: {
+    type: String,
+    required: true,
+  },
   mintAddress: { 
     type: String, 
-    required: true, 
+    required: false, 
     unique: true 
+  },
+  name: {
+    type: String,
+    required: true,
+  },
+  symbol: {
+    type: String,
+    required: true,
+  },
+  tweetId: {
+    type: String,
+    required: true,
+  },
+  imageUrl: {
+    type: String,
+    required: true,
   },
   createdAt: { 
     type: Date, 

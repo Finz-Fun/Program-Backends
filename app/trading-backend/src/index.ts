@@ -28,7 +28,7 @@ class PriceCollectorService {
   async getKnownTokens(): Promise<string[]> {
     try {
       const tokens = await Token.find({ isActive: true });
-      if (!tokens.length) {
+      if (!tokens) {
         const defaultTokens = [
           'CcGU8SdwSriabxH43s3m1D2Grt1ewinkhS1nzbXZXq5U',
           'CPSumkuZjzaDAHp6ti18iko4AnFN3xCBp3DjgF4bUSzJ',
@@ -42,7 +42,7 @@ class PriceCollectorService {
         return defaultTokens;
       }
       
-      return tokens.map(token => token.mintAddress);
+      return tokens.map(token => token.mintAddress!)
     } catch (error) {
       console.error('Error getting known tokens:', error);
       return [];
