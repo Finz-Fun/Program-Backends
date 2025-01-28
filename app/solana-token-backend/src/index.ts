@@ -1358,6 +1358,121 @@ app.put('/api/creators/agent-status', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/tokens', async (req: Request, res: Response) => {
+  try {
+
+    interface tokenType {
+      title: string;
+      symbol: string;
+      imageUrl: string;
+      priceSol: number;
+      priceUsd: number;
+      avatarUrl: string;
+      tokenMint: string;
+    }
+    const tokens = await Token.find();
+
+    let multiplier = 1;
+
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+        const data = await response.json();
+        multiplier = data.solana.usd;
+    } catch (error) {
+      console.log('Error fetching solana price:', error);
+    }
+    
+    const tokenDataPromises = tokens.map(async (token) => {
+      try {
+        const poolData = await fetchPoolData(token.mintAddress as string);
+        const creator = await Creator.findOne({ twitterId: token.creator });
+        
+        return {
+          title: token.name,
+          symbol: token.symbol,
+          imageUrl: token.imageUrl,
+          priceSol: poolData.price,
+          priceUsd: poolData.price * multiplier, 
+          avatarUrl: creator?.profileImage || '',
+          tokenMint: token.mintAddress
+        };
+      } catch (error) {
+        console.error(`Error fetching data for token ${token.mintAddress}:`, error);
+        return null;
+      }
+    });
+    const tokenData = (await Promise.all(tokenDataPromises)).filter(
+      (token): token is tokenType => token !== null
+    );
+
+    res.json(tokenData);
+  } catch (error) {
+    console.error('Error fetching tokens:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tokens',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+
+app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) => {
+  try {
+
+    interface tokenType {
+      title: string;
+      symbol: string;
+      imageUrl: string;
+      priceSol: number;
+      priceUsd: number;
+      avatarUrl: string;
+      tokenMint: string;
+    }
+    const tokens = await Token.find({creator: req.params.creatorId });
+
+    let multiplier = 1;
+
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+        const data = await response.json();
+        multiplier = data.solana.usd;
+    } catch (error) {
+      console.log('Error fetching solana price:', error);
+    }
+    
+    const tokenDataPromises = tokens.map(async (token) => {
+      try {
+        const poolData = await fetchPoolData(token.mintAddress as string);
+        const creator = await Creator.findOne({ twitterId: token.creator });
+        
+        return {
+          title: token.name,
+          symbol: token.symbol,
+          imageUrl: token.imageUrl,
+          priceSol: poolData.price,
+          priceUsd: poolData.price * multiplier, 
+          avatarUrl: creator?.profileImage || '',
+          tokenMint: token.mintAddress
+        };
+      } catch (error) {
+        console.error(`Error fetching data for token ${token.mintAddress}:`, error);
+        return null;
+      }
+    });
+    const tokenData = (await Promise.all(tokenDataPromises)).filter(
+      (token): token is tokenType => token !== null
+    );
+
+    res.json(tokenData);
+  } catch (error) {
+    console.error('Error fetching tokens:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tokens',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 
 
 app.get('/actions.json', (req: Request, res: Response) => {
