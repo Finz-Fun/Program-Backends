@@ -5,6 +5,7 @@ import { Validation, ValidationError } from '../utils/validation';
 import dotenv from 'dotenv';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import  Creator from '../models/creatorSchema';
 // import { RedisService } from './redis-service';
 
 dotenv.config();
@@ -136,9 +137,18 @@ export class TwitterService {
         
         const query = `(@${this.botScreenName}) -filter:replies -filter:retweets`;
         const notifications = this.scraper.searchTweets(query, 50);
-        
+
+        const enabledCreators = await Creator.find({ agentEnabled: true });
+
+        const enabledCreatorIds = new Set(enabledCreators.map(c => c.twitterId));
+
         for await (const tweet of notifications) {
-          const tweetTimestamp = (tweet.timestamp as number)*1000;
+          if (!enabledCreatorIds.has(tweet.userId as string)) {
+            console.log('Skipping tweet from non-enabled creator:', tweet.userId);
+            continue;
+          }
+
+          const tweetTimestamp = (tweet.timestamp as number) * 1000;
 
           console.log('Tweet timestamp:', tweetTimestamp);
           console.log('Last processed timestamp:', this.lastProcessedTimestamp);
