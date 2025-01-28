@@ -241,7 +241,7 @@ acorn@^8.11.0, acorn@^8.4.1:
 
 agent-twitter-client@^0.0.18:
   version "0.0.18"
-  resolved "https://registry.npmjs.org/agent-twitter-client/-/agent-twitter-client-0.0.18.tgz"
+  resolved "https://registry.yarnpkg.com/agent-twitter-client/-/agent-twitter-client-0.0.18.tgz#9cb66321e0ccb3d3130cf4971ceb0c7f90863fe4"
   integrity sha512-HncH5mlFcGYLEl5wNEkwtdolcmdxqEMIsqO4kTqiTp5P19O25Zr4P6LNJZz1UTjPRyXDxj+BLmmk/Ou7O0QzEg==
   dependencies:
     "@roamhq/wrtc" "^0.8.0"

@@ -10,7 +10,6 @@ import  Creator from '../models/creatorSchema';
 
 dotenv.config();
 
-const userKey = process.env.USER_KEY;
 const username = process.env.TWITTER_USERNAME;
 const password = process.env.TWITTER_PASSWORD;
 

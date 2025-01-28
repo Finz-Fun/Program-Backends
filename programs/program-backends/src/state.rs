@@ -263,8 +263,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         let fee_amount = (amount as f64) * (fees / 100.0);
         let adjusted_amount = (amount as f64) * (1.0 - fees / 100.0);
 
+        let fee_amount_u64 = fee_amount.round() as u64;
+        let adjusted_amount_u64 = adjusted_amount.round() as u64;
     
-        let ix = transfer(authority.key, team_account.key, fee_amount as u64);
+        let ix = transfer(authority.key, team_account.key, fee_amount_u64);
         invoke(
             &ix,
             &[
@@ -294,11 +296,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             return err!(CustomError::NotEnoughTokenInVault);
         }
 
-        self.reserve_sol += adjusted_amount as u64;
+        self.reserve_sol += adjusted_amount_u64;
         self.reserve_token -= amount_out;
 
 
-        self.transfer_sol_to_pool(authority, pool_sol_vault, amount, system_program)?;
+        self.transfer_sol_to_pool(authority, pool_sol_vault, adjusted_amount_u64, system_program)?;
         self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out, token_program)?;
 
         Ok(())

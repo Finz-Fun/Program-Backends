@@ -15,7 +15,7 @@ export interface ICreator extends Document {
   agentEnabled: boolean;
 }
 
-const CreatorSchema = new Schema<ICreator>({
+const CreatorSchema = new Schema({
   twitterId: { 
     type: String, 
     required: true, 
@@ -60,4 +60,4 @@ const CreatorSchema = new Schema<ICreator>({
 });
 
 // Prevent duplicate model initialization
-export default mongoose.models.Creator || mongoose.model<ICreator>('Creator', CreatorSchema);
+export default mongoose.model('Creator', CreatorSchema);

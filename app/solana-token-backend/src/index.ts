@@ -942,22 +942,71 @@ const fetchPoolData = async (tokenMint:string)=>{
 }
 }
 
-const fetchReserveToken = async (tokenMint:string)=>{
-  try{
-    const mint = new PublicKey(tokenMint)
-    const [poolPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()],
-      program.programId
-    );
-    const stateData = await program.account.liquidityPool.fetch(poolPda)
-   
+const fetchReserveToken = async (tokenMint: string) => {
+  try {
+    const token = await Token.findOne({ mintAddress: tokenMint });
+    const creator = await Creator.findOne({ twitterId: token?.creator });
+    if (!token) {
+      console.log("Token not found in database:", tokenMint);
+      return { 
+        reserveToken: new BN(0), 
+        mcap: 0,
+        creatorName: creator?.username,
+        tokenName: null,
+        tokenSymbol: null, 
+        isLiquidityActive: false,
+        imageUrl: null 
+      };
+    }
+
+    try {
+      const VIRTUAL_SOL = new BN(25_000_000_000);
+      const mint = new PublicKey(tokenMint);
+      const [poolPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()],
+        program.programId
+      );
+      const stateData = await program.account.liquidityPool.fetch(poolPda);
+      const reserveSol = stateData.reserveSol
   
-    return { reserveToken:stateData.reserveToken}
-  } catch (error:any) {
-    console.log(error)
-    return { reserveToken: new BN(0)}
-}
-}
+      const totalSolWithVirtual = reserveSol.add(VIRTUAL_SOL);
+    
+      const mcapInSol = parseInt(totalSolWithVirtual.toString())/ parseInt((new BN(1_000_000_000)).toString());
+      
+      return { 
+        reserveToken: stateData.reserveToken,
+        mcap: mcapInSol,
+        creatorName: creator?.username,
+        tokenName: token.name,
+        tokenSymbol: token.symbol,
+        isLiquidityActive: token.liquidity,
+        imageUrl: token.imageUrl
+      };
+    } catch (onChainError) {
+      console.log("Failed to fetch on-chain data:", onChainError);
+      return { 
+        reserveToken: new BN(0),
+        mcap: 0,
+        creatorName: creator?.username,
+        tokenName: token.name,
+        tokenSymbol: token.symbol,
+        isLiquidityActive: token.liquidity,
+        imageUrl: token.imageUrl
+      };
+    }
+  } catch (dbError) {
+    console.log("Database error:", dbError);
+    return { 
+      reserveToken: new BN(0), 
+      mcap: 0,
+      creatorName: null,
+      tokenName: null,
+      tokenSymbol: null, 
+      isLiquidityActive: false,
+      imageUrl: null 
+    };
+  }
+};
 
 
 app.get('/blinks/:tokenMint', async (req: Request, res: Response) => {
@@ -1231,14 +1280,25 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
 app.get('/api/:tokenMint/pool-data', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
-    const reserveToken = await fetchReserveToken(tokenMint);
-    res.json({reserveToken: reserveToken.reserveToken.toString(), tokenName: "TOKEN"});
+    const token = await fetchReserveToken(tokenMint);
+    res.json({reserveToken: token.reserveToken.toString(), tokenName:token.tokenName, tokenSymbol:token.tokenSymbol, isLiquidityActive:token.isLiquidityActive, imageUrl:token.imageUrl, creatorName:token.creatorName, mcap:token.mcap.toString()});
   } catch (error: any) {
     console.error('Error fetching pool data:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+app.get('/api/:tokenMint/add-liquidity', async (req: Request, res: Response) => {
+  const { tokenMint } = req.params;
+  const token = await Token.findOne({mintAddress:tokenMint})
+  if (token) {
+    token.liquidity = true
+    await token.save()
+    res.json({success: true, message: "Liquidity added successfully"});
+  } else {
+    res.status(404).json({error: "Token not found"});
+  }
+})
 
 
 app.get('/generate', async (req: Request, res: Response) => {
