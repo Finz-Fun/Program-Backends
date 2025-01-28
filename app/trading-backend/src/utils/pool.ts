@@ -61,6 +61,8 @@ export async function subscribeToPoolUpdates(
     'confirmed'
   );
 
+  console.log("subscription id", subscriptionId)
+
   return subscriptionId;
 }
 

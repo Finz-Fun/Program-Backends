@@ -28,11 +28,10 @@ class PriceCollectorService {
   async getKnownTokens(): Promise<string[]> {
     try {
       const tokens = await Token.find({ isActive: true });
+      console.log("tokens", tokens)
       if (!tokens) {
         const defaultTokens = [
-          'CcGU8SdwSriabxH43s3m1D2Grt1ewinkhS1nzbXZXq5U',
-          'CPSumkuZjzaDAHp6ti18iko4AnFN3xCBp3DjgF4bUSzJ',
-          'AgcsskTUCce1USqnTX5pfGpkN6KJGQ3KWuZ9LE7c3G7Z'
+          'ALAnG8Ebvsnf865bHigGx58CA2ATWWRXN8asYn26Mgi4'
         ];
         
         await Token.insertMany(
@@ -52,26 +51,24 @@ class PriceCollectorService {
   async addNewToken(tokenMint: string): Promise<boolean> {
     try {
       const existingToken = await Token.findOne({ mintAddress: tokenMint });
-      
+      console.log("existingToken", existingToken)
       if (existingToken) {
         if (!existingToken.isActive) {
           existingToken.isActive = true;
           existingToken.lastUpdated = new Date();
           await existingToken.save();
         }
-      } else {
-        await Token.create({ 
-          mintAddress: tokenMint,
-          isActive: true
-        });
+        
+        if (this.isRunning) {
+          console.log("starting collection")
+          await this.startCollecting(tokenMint);
+        }
+        
+        console.log(`Added new token to tracking: ${tokenMint}`);
+        return true;
       }
       
-      if (this.isRunning) {
-        await this.startCollecting(tokenMint);
-      }
-      
-      console.log(`Added new token to tracking: ${tokenMint}`);
-      return true;
+      return false;
     } catch (error) {
       console.error('Error adding new token:', error);
       return false;
@@ -277,8 +274,8 @@ app.get("/candles/:tokenMint", async (req, res) => {
   }
 });
 
-app.post('/tokens/add', async (req, res) => {
-  const { tokenMint } = req.body;
+app.get('/tokens/add', async (req, res) => {
+  const { tokenMint } = req.query;
   
   if (!tokenMint) {
     res.status(400).json({ error: 'Token mint address is required' });
@@ -286,9 +283,9 @@ app.post('/tokens/add', async (req, res) => {
   }
 
   try {
-    const success = await priceCollector.addNewToken(tokenMint);
+    const success = await priceCollector.addNewToken(tokenMint as string);
     if (success) {
-      const status = await priceCollector.getTokenStatus(tokenMint);
+      const status = await priceCollector.getTokenStatus(tokenMint as string);
        res.json({ 
         message: 'Token added successfully', 
         status 

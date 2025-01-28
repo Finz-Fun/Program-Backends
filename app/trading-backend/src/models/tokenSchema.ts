@@ -40,7 +40,7 @@ const tokenSchema = new mongoose.Schema({
   },
   isActive: { 
     type: Boolean, 
-    default: true 
+    default: false 
   },
   liquidity: {
     type: Boolean,
