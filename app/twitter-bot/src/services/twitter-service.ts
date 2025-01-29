@@ -72,7 +72,6 @@ export class TwitterService {
       const isLoggedIn = await this.scraper.isLoggedIn();
       console.log('Is logged in:', isLoggedIn);
 
-      // Load last timestamp
       try {
         const savedTimestamp = await fs.readFile(this.TIMESTAMP_FILE, 'utf-8');
         console.log('Read from file:', savedTimestamp);
@@ -89,7 +88,6 @@ export class TwitterService {
           throw new Error('Empty timestamp file');
         }
       } catch (error) {
-        // Start from current time instead of 24 hours back
         this.lastProcessedTimestamp = Date.now();
         console.log('Setting current timestamp:', this.lastProcessedTimestamp);
         await this.updateLastProcessedTimestamp(this.lastProcessedTimestamp);
@@ -237,25 +235,25 @@ export class TwitterService {
   private async handleMention(tweet: Tweet) {
     try {
       // const context = await this.aiService.analyzeTweetContext(tweet.text);
-      // const suggestions = await this.aiService.generateSuggestions(tweet.text);
-      const suggestions = [
-        {
-          name: '1. SolanaSavvy',
-          ticker: 'SLSY',
-          description: 'Ride the Solana wave in 2025!'
-        },
-        {
-          name: '2. LockIn2025',
-          ticker: 'LCKN',
-          description: "Secure your future, don't miss out!"
-        },
-        {
-          name: '3. FutureFlare',
-          ticker: 'FUTR',
-          description: 'Ignite your portfolio with Solana!'
-        }
-      ]
-
+      const suggestions = await this.aiService.generateSuggestions(tweet.text);
+      // const suggestions = [
+      //   {
+      //     name: '1. SolanaSavvy',
+      //     ticker: 'SLSY',
+      //     description: 'Ride the Solana wave in 2025!'
+      //   },
+      //   {
+      //     name: '2. LockIn2025',
+      //     ticker: 'LCKN',
+      //     description: "Secure your future, don't miss out!"
+      //   },
+      //   {
+      //     name: '3. FutureFlare',
+      //     ticker: 'FUTR',
+      //     description: 'Ignite your portfolio with Solana!'
+      //   }
+      // ]
+      console.log('Suggestions:', suggestions);
       const contextIntro = "👋 Based on your tweet, here are some token suggestions:";
 
       await this.replyToTweet(tweet.id, 
@@ -317,7 +315,7 @@ export class TwitterService {
                 {
                   name: tweet.tweetName as string,
                   tweetId: tweet.parentTweetId as string,
-                  tokenName: state.name!,
+                  tokenName: state.name!.replace(/^\d+\.\s*/, ''),
                   symbol: state.symbol!,
                   username: tweet.tweetUsername as string,
                   content: tweet.tweetContent as string,
