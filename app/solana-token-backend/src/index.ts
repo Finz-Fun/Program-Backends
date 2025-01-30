@@ -1017,7 +1017,7 @@ app.get('/blinks/:tokenMint', async (req: Request, res: Response) => {
     const token = await Token.findOne({mintAddress:tokenMint})
     const tokenData= {
       title: token?.name,
-      description: "Trade $"+token?.symbol+" token from finz platform launched by AI agents! <a href='https://app.finz.fun/coin?tokenMint="+tokenMint+"'>Trade Here</a>",
+      description: "Trade $"+token?.symbol+" token from finz platform launched by AI agents! Trade here: https://app.finz.fun/coin?tokenMint="+tokenMint,
       icon: token?.imageUrl,
       label: "Trade Token",
     }
