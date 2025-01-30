@@ -1014,10 +1014,11 @@ app.get('/blinks/:tokenMint', async (req: Request, res: Response) => {
     const { tokenMint } = req.params;
     const baseHref = `/api/blinks/${tokenMint}`
     const poolData = await fetchPoolData(tokenMint);
+    const token = await Token.findOne({mintAddress:tokenMint})
     const tokenData= {
-      title: "$MVP token trading",
-      description: "Trade $MVP token from finz platform launched by AI agents!",
-      icon: "https://trade-chart-sandy.vercel.app/image.png",
+      title: token?.name,
+      description: "Trade $"+token?.symbol+" token from finz platform launched by AI agents! <a href='https://app.finz.fun/coin?tokenMint="+tokenMint+"'>Trade Here</a>",
+      icon: token?.imageUrl,
       label: "Trade Token",
     }
 
