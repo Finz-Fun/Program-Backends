@@ -511,8 +511,8 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
       mint: publicKey(mintKeypair.publicKey.toBase58()),
     });
     
-    const INITIAL_LIQUIDITY_SOL =Math.floor(parseFloat("0.02") * 1e9); 
-    const buyAmount = Math.floor(parseFloat(solAmount as string) * 1e9) - INITIAL_LIQUIDITY_SOL; 
+    // const INITIAL_LIQUIDITY_SOL =Math.floor(parseFloat("0.02") * 1e9); 
+    const buyAmount = Math.floor(parseFloat(solAmount as string) * 1e9); 
 
     const userTokenAccount = await getAssociatedTokenAddress(
       mintKeypair.publicKey,
@@ -666,7 +666,7 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
       success: true,
       transaction: serializedTransaction,
       message: "Transaction created successfully. Sign and submit to add liquidity and buy tokens.",
-      initialLiquiditySol: INITIAL_LIQUIDITY_SOL/1e9,
+      // initialLiquiditySol: INITIAL_LIQUIDITY_SOL/1e9,
       buyAmountSol: buyAmount / 1e9,
       poolPda: poolPda.toBase58(),
       poolSolVault: poolSolVault.toBase58(),

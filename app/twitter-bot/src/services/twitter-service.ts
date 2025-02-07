@@ -10,8 +10,8 @@ import  Creator from '../models/creatorSchema';
 
 dotenv.config();
 
-const username = process.env.TWITTER_USERNAME;
-const password = process.env.TWITTER_PASSWORD;
+const username = process.env.TWITTER_USERNAME_0;
+const password = process.env.TWITTER_PASSWORD_0;
 
 interface Tweet {
   parentTweetId?: string;
@@ -39,6 +39,20 @@ interface TokenCreationState {
   isCompleted: boolean;
 }
 
+interface TwitterSearchResult {
+  id: string;
+  userId: string;
+  text: string;
+  timestamp?: number;
+  inReplyToStatusId?: string;
+  conversationId?: string;
+  username?: string;
+  name?: string;
+  replies?: number;
+  retweets?: number;
+  likes?: number;
+}
+
 export class TwitterService {
   private scraper: Scraper;
   private botUserId?: string;
@@ -52,14 +66,75 @@ export class TwitterService {
   private readonly MIN_BACKOFF = 10000;  
   private readonly MAX_BACKOFF = 30000;  
   private readonly ERROR_MIN_BACKOFF = 30000;  
-  private readonly ERROR_MAX_BACKOFF = 90000;  
+  private readonly ERROR_MAX_BACKOFF = 90000;
+  private readonly SEARCH_TIMEOUT = 4000; // 4 second timeout
   private readonly TIMESTAMP_FILE = path.join(__dirname, '../../last-processed.txt');
+  private currentCredentialIndex: number = 0;
+  private credentials: Array<{ username: string, password: string }>;
 
   constructor() {
     this.scraper = new Scraper();
     this.aiService = new AiService();
     this.tokenService = new TokenService();
     this.lastProcessedTimestamp = Date.now();
+    
+    this.credentials = [];
+    let index = 0;
+    while (process.env[`TWITTER_USERNAME_${index}`] && process.env[`TWITTER_PASSWORD_${index}`]) {
+      this.credentials.push({
+        username: process.env[`TWITTER_USERNAME_${index}`] as string,
+        password: process.env[`TWITTER_PASSWORD_${index}`] as string
+      });
+      index++;
+    }
+    if (this.credentials.length === 0) {
+      throw new Error('No Twitter credentials configured');
+    }
+  }
+
+  private async reinitialize() {
+    console.log('Attempting to reinitialize with different credentials...');
+    this.currentCredentialIndex = (this.currentCredentialIndex + 1) % this.credentials.length;
+    const credentials = this.credentials[this.currentCredentialIndex];
+    
+    try {
+      this.scraper = new Scraper();
+      await this.scraper.login(credentials.username, credentials.password);
+      const isLoggedIn = await this.scraper.isLoggedIn();
+      console.log('Reinitialized and logged in:', isLoggedIn);
+      
+      const me = await this.scraper.me();
+      this.botUserId = me?.userId;
+      this.botScreenName = me?.username as string;
+      console.log('Bot reinitialized as:', me);
+      return true;
+    } catch (error) {
+      console.error('Reinitialization failed:', error);
+      return false;
+    }
+  }
+
+  private async searchTweetsWithTimeout(query: string, limit: number): Promise<TwitterSearchResult[]> {
+    return new Promise(async (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Search tweets timeout'));
+      }, this.SEARCH_TIMEOUT);
+
+      try {
+        const tweets: TwitterSearchResult[] = [];
+        const iterator = this.scraper.searchTweets(query, limit);
+        
+        for await (const tweet of iterator) {
+          tweets.push(tweet as TwitterSearchResult);
+        }
+        
+        clearTimeout(timeout);
+        resolve(tweets);
+      } catch (error) {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    });
   }
 
   async initialize() {
@@ -132,93 +207,107 @@ export class TwitterService {
 
         console.log('Searching for new mentions...', this.botScreenName);
         
-        const query = `(@${this.botScreenName}) -filter:replies -filter:retweets`;
-        const notifications = this.scraper.searchTweets(query, 50);
+        const query = `(@finzfunAI) -filter:replies -filter:retweets`;
+        
+        try {
+          const notifications = await this.searchTweetsWithTimeout(query, 50);
+          const enabledCreators = await Creator.find({ agentEnabled: true });
 
-        const enabledCreators = await Creator.find({ agentEnabled: true });
+          const enabledCreatorIds = new Set(enabledCreators.map(c => c.twitterId));
 
-        const enabledCreatorIds = new Set(enabledCreators.map(c => c.twitterId));
+          for await (const tweet of notifications) {
+            if (!enabledCreatorIds.has(tweet.userId)) {
+              console.log('Skipping tweet from non-enabled creator:', tweet.userId);
+              continue;
+            }
 
-        for await (const tweet of notifications) {
-          if (!enabledCreatorIds.has(tweet.userId as string)) {
-            console.log('Skipping tweet from non-enabled creator:', tweet.userId);
-            continue;
+            const tweetTimestamp = (tweet.timestamp as number) * 1000;
+
+            console.log('Tweet timestamp:', tweetTimestamp);
+            console.log('Last processed timestamp:', this.lastProcessedTimestamp);
+            if (tweetTimestamp < this.lastProcessedTimestamp) {
+              console.log('Skipping older tweet:', tweet.id);
+              continue;
+            }
+
+            if (!this.processedMentions.has(tweet.id as string)) {
+              console.log('Starting new conversation:', tweet);
+              await this.handleMention({
+                id: tweet.id as string,
+                userId: tweet.userId as string,
+                text: tweet.text as string
+              });
+              this.processedMentions.add(tweet.id as string);
+              await this.updateLastProcessedTimestamp(
+                Math.max(this.lastProcessedTimestamp, tweetTimestamp)
+              );
+            }
           }
 
-          const tweetTimestamp = (tweet.timestamp as number) * 1000;
-
-          console.log('Tweet timestamp:', tweetTimestamp);
-          console.log('Last processed timestamp:', this.lastProcessedTimestamp);
-          if (tweetTimestamp < this.lastProcessedTimestamp) {
-            console.log('Skipping older tweet:', tweet.id);
-            continue;
-          }
-
-          if (!this.processedMentions.has(tweet.id as string)) {
-            console.log('Starting new conversation:', tweet);
-            await this.handleMention({
-              id: tweet.id as string,
-              userId: tweet.userId as string,
-              text: tweet.text as string
-            });
-            this.processedMentions.add(tweet.id as string);
-            await this.updateLastProcessedTimestamp(
-              Math.max(this.lastProcessedTimestamp, tweetTimestamp)
-            );
-          }
-        }
-
-        for (const [tweetId, state] of this.tweetStates.entries()) {
-          if (!state.isCompleted) {
-            console.log('Checking replies for tweet:', tweetId);
-            const repliesQuery = `conversation_id:${tweetId}`;
-            const replies = this.scraper.searchTweets(repliesQuery, 50);
-            
-            for await (const reply of replies) {
-              if (reply.userId === this.botUserId) continue;
-
+          for (const [tweetId, state] of this.tweetStates.entries()) {
+            if (!state.isCompleted) {
+              console.log('Checking replies for tweet:', tweetId);
+              const repliesQuery = `conversation_id:${tweetId}`;
+              const replies = await this.searchTweetsWithTimeout(repliesQuery, 50);
               
+              for await (const reply of replies) {
+                if (reply.userId === this.botUserId) continue;
 
-              const parentTweetId = reply.inReplyToStatusId;
-              
-              if (parentTweetId) {
-                const parentTweet = await this.scraper.getTweet(parentTweetId);
-                if (parentTweet?.userId !== this.botUserId) {
-                  console.log('Skipping reply as parent tweet is not from bot');
-                  continue;
+                const parentTweetId = reply.inReplyToStatusId;
+                
+                if (parentTweetId) {
+                  const parentTweet = await this.scraper.getTweet(parentTweetId);
+                  if (parentTweet?.userId !== this.botUserId) {
+                    console.log('Skipping reply as parent tweet is not from bot');
+                    continue;
+                  }
                 }
-              }
 
-              const originalTweet = await this.scraper.getTweet(reply.conversationId as string);
-              
-              if (reply.userId === state.userId) {
-                console.log('Processing reply:', reply);
-                await this.continueTokenCreation({
-                  id: reply.id as string,
-                  userId: reply.userId as string,
-                  text: reply.text as string,
-                  tweetUsername: originalTweet?.username as string,
-                  tweetName: originalTweet?.name as string,
-                  tweetContent: originalTweet?.text as string,
-                  timestamp: originalTweet?.timestamp?.toString() as string,
-                  replies: originalTweet?.replies as number,
-                  retweets: originalTweet?.retweets as number,
-                  likes: originalTweet?.likes as number,
-                  creator: originalTweet?.userId as string
-                }, state);
+                const originalTweet = await this.scraper.getTweet(reply.conversationId as string);
+                
+                if (reply.userId === state.userId) {
+                  console.log('Processing reply:', reply);
+                  await this.continueTokenCreation({
+                    id: reply.id as string,
+                    userId: reply.userId as string,
+                    text: reply.text as string,
+                    tweetUsername: originalTweet?.username as string,
+                    tweetName: originalTweet?.name as string,
+                    tweetContent: originalTweet?.text as string,
+                    timestamp: originalTweet?.timestamp?.toString() as string,
+                    replies: originalTweet?.replies as number,
+                    retweets: originalTweet?.retweets as number,
+                    likes: originalTweet?.likes as number,
+                    creator: originalTweet?.userId as string
+                  }, state);
+                }
               }
             }
           }
+
+          // Schedule next check with normal backoff
+          const backoffTime = Math.min(
+            this.MIN_BACKOFF * (1 + Math.random()), 
+            this.MAX_BACKOFF
+          );
+          console.log(`Next check in ${backoffTime/1000} seconds`);
+          setTimeout(checkMentions, backoffTime);
+
+        } catch (error) {
+          console.error('Error in search tweets:', error);
+          const success = await this.reinitialize();
+          if (!success) {
+            console.log('All credentials attempted, waiting before retry...');
+            throw error; // This will trigger the error backoff
+          }
+          // If reinitialization successful, immediately try again
+          console.log('Reinitialization successful, continuing mention checks...');
+          setTimeout(checkMentions, this.MIN_BACKOFF);
+          return;
         }
 
-        const backoffTime = Math.min(
-          this.MIN_BACKOFF * (1 + Math.random()), 
-          this.MAX_BACKOFF
-        );
-        console.log(`Next check in ${backoffTime/1000} seconds`);
-        setTimeout(checkMentions, backoffTime);
       } catch (error) {
-        console.error('Error checking mentions:', error);
+        console.log('Error checking mentions:', error);
         const errorBackoffTime = Math.min(
           this.ERROR_MIN_BACKOFF * (1 + Math.random()), 
           this.ERROR_MAX_BACKOFF

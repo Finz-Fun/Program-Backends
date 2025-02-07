@@ -22,4 +22,4 @@ async function testMentions() {
 //   }, 5 * 60 * 1000);
 }
 
-testMentions().catch(console.error);
+testMentions().catch((error: any) => console.log('Error:', error));
