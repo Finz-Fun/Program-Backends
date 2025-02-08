@@ -102,7 +102,9 @@ export class TwitterService {
       await this.scraper.login(credentials.username, credentials.password);
       const isLoggedIn = await this.scraper.isLoggedIn();
       console.log('Reinitialized and logged in:', isLoggedIn);
-      
+      const cookies = await this.scraper.getCookies();
+
+      await this.scraper.setCookies(cookies);
       const me = await this.scraper.me();
       this.botUserId = me?.userId;
       this.botScreenName = me?.username as string;
@@ -285,7 +287,6 @@ export class TwitterService {
             }
           }
 
-          // Schedule next check with normal backoff
           const backoffTime = Math.min(
             this.MIN_BACKOFF * (1 + Math.random()), 
             this.MAX_BACKOFF
@@ -298,9 +299,9 @@ export class TwitterService {
           const success = await this.reinitialize();
           if (!success) {
             console.log('All credentials attempted, waiting before retry...');
-            throw error; // This will trigger the error backoff
+            throw error; 
           }
-          // If reinitialization successful, immediately try again
+
           console.log('Reinitialization successful, continuing mention checks...');
           setTimeout(checkMentions, this.MIN_BACKOFF);
           return;
