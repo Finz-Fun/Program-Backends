@@ -24,7 +24,8 @@ import Creator from './models/creatorSchema';
 import { connectDB } from './db';
 import nodeHtmlToImage from 'node-html-to-image';
 import { Token } from './models/tokenSchema';
-
+import Walletmodel from './models/walletSchema';
+import Mentions from './models/mentionsSchema';
 dotenv.config();
 
 const app = express();
@@ -131,9 +132,14 @@ interface TweetData {
   replies: number;
   retweets: number;
   likes: number;
+  tweetImage?: string;
 }
 
 async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
+  const cleanContent = (content: string) => {
+    return content.replace(/\s+https:\/\/t\.co\/\w+$/, '');
+  };
+
   const html = `
     <html>
       <head>
@@ -255,6 +261,21 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
             font-size: 14px;
             margin-left: 8px;
           }
+          .tweet-image {
+            margin-top: 10px;
+            margin-bottom: 12px;
+            border-radius: 16px;
+            overflow: hidden;
+            max-width: 100%;
+          }
+          
+          .tweet-image img {
+            width: 100%;
+            height: auto;
+            max-height: 350px;
+            object-fit: cover;
+            display: block;
+          }
         </style>
       </head>
       <body>
@@ -280,7 +301,13 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
                 </div>
               </div>
               
-              <div class="tweet-content">${tweetData.content}</div>
+              <div class="tweet-content">${cleanContent(tweetData.content)}</div>
+
+              ${tweetData.tweetImage ? `
+                <div class="tweet-image">
+                  <img src="${tweetData.tweetImage}" alt="Tweet image" />
+                </div>
+              ` : ''}
 
               <div class="metrics">
                 <div class="metric">
@@ -333,13 +360,14 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
     </html>
   `;
 
-  // Adjust height calculation to be more precise
+  // Adjust height calculation to include image height if present
   const contentLength = tweetData.content.length;
   const lineHeight = 20;
   const charsPerLine = 60;
   const estimatedLines = Math.ceil(contentLength / charsPerLine);
-  const baseHeight = 120; // Further reduced base height
-  const estimatedHeight = baseHeight + (estimatedLines * lineHeight);
+  const baseHeight = 120;
+  const imageHeight = tweetData.tweetImage ? 350 : 0; // Add image height if present
+  const estimatedHeight = baseHeight + (estimatedLines * lineHeight) + imageHeight;
 
   const image = await nodeHtmlToImage({
     html,
@@ -400,6 +428,7 @@ app.post("/create-token", async (req, res) => {
       retweets: Number(req.body.retweets || 0),
       likes: Number(req.body.likes || 0),
       creator: String(req.body.creator || ''),
+      tweetImage: String(req.body.tweetImage || '')
     };
     console.log("Tweet data:", tweetData);
     console.log("Token name:", tokenName);
@@ -413,7 +442,6 @@ app.post("/create-token", async (req, res) => {
     const mintKeypair = Keypair.generate();
 
     const {metadataUri, imageUrl} = await uploadToS3(tokenName as string, symbol as string, imageBuffer, contentType);
-    console.log("Metadata URI:", metadataUri);
     await Token.create({
       creator: tweetData.creator,
       name:tokenName,
@@ -1469,6 +1497,37 @@ app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) =>
     console.error('Error fetching tokens:', error);
     res.status(500).json({ 
       error: 'Failed to fetch tokens',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+app.get('/api/analytics', async (req: Request, res: Response) => {
+  try {
+    const tokens = await Token.find();
+    const wallets = await Walletmodel.find();
+    const mentions = await Mentions.find();
+    let totalCreators = 0;
+    let totalTokensCreated = tokens.length;
+
+    const creators = await Creator.find();
+    totalCreators = creators.length;
+
+    const nonCreatorUsers = wallets.length - totalCreators;
+    const totalMentions = mentions.length;  
+
+    res.json({
+      totalUsers: wallets.length,
+      numberOfMentions: totalMentions,
+      numberOfCreators: totalCreators,
+      nonCreatorUsers: nonCreatorUsers > 0 ? nonCreatorUsers : 0,
+      totalTokensCreated: totalTokensCreated
+    });
+
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch analytics data',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

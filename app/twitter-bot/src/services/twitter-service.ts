@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import  Creator from '../models/creatorSchema';
+import Mentions from '../models/mentionsSchema';
 // import { RedisService } from './redis-service';
 
 dotenv.config();
@@ -26,6 +27,7 @@ interface Tweet {
   tweetName?: string;
   tweetContent?: string;
   creator?: string;
+  tweetImage?: string;
 }
 
 interface TokenCreationState {
@@ -210,9 +212,12 @@ export class TwitterService {
         console.log('Searching for new mentions...', this.botScreenName);
         
         const query = `(@finzfunAI) -filter:replies -filter:retweets`;
+        const mentions = await Mentions.find({});
         
         try {
           const notifications = await this.searchTweetsWithTimeout(query, 50);
+          const newMentions = notifications.filter(tweet => !mentions.some(m => m.tweetId === tweet.id));
+          await Mentions.insertMany(newMentions.map(tweet => ({ tweetId: tweet.id })));
           const enabledCreators = await Creator.find({ agentEnabled: true });
 
           const enabledCreatorIds = new Set(enabledCreators.map(c => c.twitterId));
@@ -276,6 +281,7 @@ export class TwitterService {
                     tweetUsername: originalTweet?.username as string,
                     tweetName: originalTweet?.name as string,
                     tweetContent: originalTweet?.text as string,
+                    tweetImage: originalTweet?.photos[0]?.url as string,
                     timestamp: originalTweet?.timestamp?.toString() as string,
                     replies: originalTweet?.replies as number,
                     retweets: originalTweet?.retweets as number,
@@ -413,7 +419,8 @@ export class TwitterService {
                   replies: tweet.replies as number,
                   retweets: tweet.retweets as number,
                   likes: tweet.likes as number,
-                  creator: tweet.userId
+                  creator: tweet.userId,
+                  tweetImage: tweet.tweetImage as string,
                 }
               );
 
