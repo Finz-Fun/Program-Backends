@@ -303,7 +303,7 @@ export class TwitterService {
                 }
 
                 const originalTweet = await this.scraper.getTweet(reply.conversationId as string);
-                const profile = await this.scraper.getProfile(originalTweet?.userId as string);
+                const profile = await this.scraper.getProfile(originalTweet?.username as string);
                 const avatarUrl = profile?.avatar;
                 
                 if (reply.userId === state.userId) {
