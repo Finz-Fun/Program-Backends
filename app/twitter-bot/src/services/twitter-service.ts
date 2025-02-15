@@ -317,9 +317,10 @@ export class TwitterService {
                     tweetContent: originalTweet?.text as string,
                     tweetImage: originalTweet?.photos[0]?.url as string,
                     timestamp: originalTweet?.timestamp?.toString() as string,
-                    replies: originalTweet?.replies as number,
-                    retweets: originalTweet?.retweets as number,
-                    likes: originalTweet?.likes as number,
+                    parentTweetId: originalTweet?.conversationId as string,
+                    replies: originalTweet?.replies as number || 0,
+                    retweets: originalTweet?.retweets as number || 0,
+                    likes: originalTweet?.likes as number || 0,
                     creator: originalTweet?.userId as string,
                     avatarUrl: avatarUrl
                   }, state);
