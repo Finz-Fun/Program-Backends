@@ -428,8 +428,6 @@ app.post("/create-token", async (req, res) => {
       'content',
       'timestamp',
       'replies',
-      'retweets',
-      'likes',
       'creator',
       'tweetImage',
       'avatarUrl'
@@ -447,9 +445,9 @@ app.post("/create-token", async (req, res) => {
       username: String(req.body.username),
       content: String(req.body.content),
       timestamp: String(req.body.timestamp),
-      replies: Number(req.body.replies),
-      retweets: Number(req.body.retweets),
-      likes: Number(req.body.likes),
+      replies: Number(req.body.replies) || 0,
+      retweets: Number(req.body.retweets) || 0,
+      likes: Number(req.body.likes) || 0,
       creator: String(req.body.creator),
       tweetImage: String(req.body.tweetImage),
       avatarUrl: String(req.body.avatarUrl)
