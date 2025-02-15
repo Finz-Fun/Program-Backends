@@ -28,6 +28,7 @@ interface Tweet {
   tweetContent?: string;
   creator?: string;
   tweetImage?: string;
+  avatarUrl?: string;
 }
 
 interface TokenCreationState {
@@ -96,27 +97,58 @@ export class TwitterService {
 
   private async reinitialize() {
     console.log('Attempting to reinitialize with different credentials...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
     this.currentCredentialIndex = (this.currentCredentialIndex + 1) % this.credentials.length;
     const credentials = this.credentials[this.currentCredentialIndex];
+    console.log('Reinitializing with credentials:', credentials.username);
     
     try {
-      this.scraper = new Scraper();
-      await this.scraper.login(credentials.username, credentials.password);
-      const isLoggedIn = await this.scraper.isLoggedIn();
-      console.log('Reinitialized and logged in:', isLoggedIn);
-      const cookies = await this.scraper.getCookies();
-
-      await this.scraper.setCookies(cookies);
-      const me = await this.scraper.me();
-      this.botUserId = me?.userId;
-      this.botScreenName = me?.username as string;
-      console.log('Bot reinitialized as:', me);
-      return true;
+        this.scraper = new Scraper();
+        
+        let loginAttempts = 0;
+        const maxAttempts = 3;
+        
+        while (loginAttempts < maxAttempts) {
+            try {
+                await this.scraper.login(credentials.username, credentials.password);
+                const isLoggedIn = await this.scraper.isLoggedIn();
+                
+                if (!isLoggedIn) {
+                    throw new Error('Login unsuccessful');
+                }
+                
+                console.log('Reinitialized and logged in:', isLoggedIn);
+                const cookies = await this.scraper.getCookies();
+                await this.scraper.setCookies(cookies);
+                
+                const me = await this.scraper.me();
+                if (!me?.userId) {
+                    throw new Error('Failed to get user details');
+                }
+                
+                this.botUserId = me.userId;
+                this.botScreenName = me.username as string;
+                console.log('Bot reinitialized as:', me.username);
+                return true;
+                
+            } catch (error) {
+                loginAttempts++;
+                console.error(`Login attempt ${loginAttempts} failed:`, error);
+                
+                if (loginAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 10000 * loginAttempts));
+                }
+            }
+        }
+        
+        throw new Error(`Failed to login after ${maxAttempts} attempts`);
+        
     } catch (error) {
-      console.error('Reinitialization failed:', error);
-      return false;
+        console.error('Reinitialization failed:', error);
+        return false;
     }
-  }
+}
 
   private async searchTweetsWithTimeout(query: string, limit: number): Promise<TwitterSearchResult[]> {
     return new Promise(async (resolve, reject) => {
@@ -258,19 +290,21 @@ export class TwitterService {
               const replies = await this.searchTweetsWithTimeout(repliesQuery, 50);
               
               for await (const reply of replies) {
-                if (reply.userId === this.botUserId) continue;
+                if (this.credentials.some(cred => reply.username?.toLowerCase() === cred.username.toLowerCase())) continue;
 
                 const parentTweetId = reply.inReplyToStatusId;
                 
                 if (parentTweetId) {
                   const parentTweet = await this.scraper.getTweet(parentTweetId);
-                  if (parentTweet?.userId !== this.botUserId) {
+                  if (!this.credentials.some(cred => parentTweet?.username?.toLowerCase() === cred.username.toLowerCase())) {
                     console.log('Skipping reply as parent tweet is not from bot');
                     continue;
                   }
                 }
 
                 const originalTweet = await this.scraper.getTweet(reply.conversationId as string);
+                const profile = await this.scraper.getProfile(originalTweet?.userId as string);
+                const avatarUrl = profile?.avatar;
                 
                 if (reply.userId === state.userId) {
                   console.log('Processing reply:', reply);
@@ -286,7 +320,8 @@ export class TwitterService {
                     replies: originalTweet?.replies as number,
                     retweets: originalTweet?.retweets as number,
                     likes: originalTweet?.likes as number,
-                    creator: originalTweet?.userId as string
+                    creator: originalTweet?.userId as string,
+                    avatarUrl: avatarUrl
                   }, state);
                 }
               }
@@ -421,6 +456,7 @@ export class TwitterService {
                   likes: tweet.likes as number,
                   creator: tweet.userId,
                   tweetImage: tweet.tweetImage as string,
+                  avatarUrl: tweet.avatarUrl as string
                 }
               );
 

@@ -23,6 +23,7 @@ export class TokenService {
     likes,
     creator,
     tweetImage,
+    avatarUrl
   }: {
     name: string,
     tokenName: string,
@@ -36,6 +37,7 @@ export class TokenService {
     likes: number,
     creator: string,
     tweetImage: string,
+    avatarUrl: string
   }): Promise<TokenCreationResult> {
     try {
       console.log(`Creating token ${tokenName} with ticker ${symbol} for user ${creator}`);
@@ -57,6 +59,7 @@ export class TokenService {
             likes,
             creator,
             tweetImage,
+            avatarUrl
           })
         }
       );

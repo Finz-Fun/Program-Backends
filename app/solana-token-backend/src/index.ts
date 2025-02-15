@@ -133,6 +133,7 @@ interface TweetData {
   retweets: number;
   likes: number;
   tweetImage?: string;
+  avatarUrl?: string;
 }
 
 async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
@@ -285,7 +286,7 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
           <div class="container">
             <div class="avatar-container">
               <div class="avatar">
-                <img src="https://pbs.twimg.com/profile_images/1683325380441128960/yRsRRjGO_400x400.jpg" alt="Avatar" />
+                <img src="${tweetData.avatarUrl}" alt="https://pbs.twimg.com/profile_images/1683325380441128960/yRsRRjGO_400x400.jpg" />
               </div>
             </div>
             <div class="content-container">
@@ -420,21 +421,40 @@ app.post("/create-token", async (req, res) => {
   try {
     const { tokenName, symbol } = req.query;
 
+    const requiredFields = [
+      'tweetId',
+      'name',
+      'username',
+      'content',
+      'timestamp',
+      'replies',
+      'retweets',
+      'likes',
+      'creator',
+      'tweetImage',
+      'avatarUrl'
+    ];
+
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+
     const tweetData = {
-      tweetId: String(req.body.tweetId || '1234567890'),
-      name: String(req.body.name || 'John Doe'),
-      username: String(req.body.username || 'johndoe'),
-      content: String(req.body.content || 'Hello, World!'),
-      timestamp: String(req.body.timestamp || '2h'),
-      replies: Number(req.body.replies || 0),
-      retweets: Number(req.body.retweets || 0),
-      likes: Number(req.body.likes || 0),
-      creator: String(req.body.creator || ''),
-      tweetImage: String(req.body.tweetImage || '')
+      tweetId: String(req.body.tweetId),
+      name: String(req.body.name),
+      username: String(req.body.username),
+      content: String(req.body.content),
+      timestamp: String(req.body.timestamp),
+      replies: Number(req.body.replies),
+      retweets: Number(req.body.retweets),
+      likes: Number(req.body.likes),
+      creator: String(req.body.creator),
+      tweetImage: String(req.body.tweetImage),
+      avatarUrl: String(req.body.avatarUrl)
     };
-    console.log("Tweet data:", tweetData);
-    console.log("Token name:", tokenName);
-    console.log("Symbol:", symbol);
+    
     const imageBuffer = await generateTweetImage(tweetData);
 
     // const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
@@ -1332,31 +1352,31 @@ app.get('/api/:tokenMint/add-liquidity', async (req: Request, res: Response) => 
 })
 
 
-app.get('/generate', async (req: Request, res: Response) => {
-  try {
-    const tweetData = {
-      name: String(req.query.name || 'John Doe'),
-      username: String(req.query.username || 'johndoe'),
-      content: String(req.query.content || 'Hello, World!'),
-      timestamp: String(req.query.timestamp || '2h'),
-      replies: Number(req.query.replies || 0),
-      retweets: Number(req.query.retweets || 0),
-      likes: Number(req.query.likes || 0),
-    };
+// app.get('/generate', async (req: Request, res: Response) => {
+//   try {
+//     const tweetData = {
+//       name: String(req.query.name || 'John Doe'),
+//       username: String(req.query.username || 'johndoe'),
+//       content: String(req.query.content || 'Hello, World!'),
+//       timestamp: String(req.query.timestamp || '2h'),
+//       replies: Number(req.query.replies || 0),
+//       retweets: Number(req.query.retweets || 0),
+//       likes: Number(req.query.likes || 0),
+//     };
 
-    const imageBuffer = await generateTweetImage(tweetData);
+//     const imageBuffer = await generateTweetImage(tweetData);
 
-    res.setHeader('Content-Type', 'image/png');
-    res.send(imageBuffer);
+//     res.setHeader('Content-Type', 'image/png');
+//     res.send(imageBuffer);
 
-  } catch (error) {
-    console.error('Error generating tweet image:', error);
-    res.status(500).json({
-      error: 'Failed to generate image',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+//   } catch (error) {
+//     console.error('Error generating tweet image:', error);
+//     res.status(500).json({
+//       error: 'Failed to generate image',
+//       message: error instanceof Error ? error.message : 'Unknown error'
+//     });
+//   }
+// });
 
 
 app.put('/api/creators/agent-status', async (req: Request, res: Response) => {
