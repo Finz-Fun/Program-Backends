@@ -140,7 +140,7 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
   const cleanContent = (content: string) => {
     return content
       .replace(/\s+https:\/\/t\.co\/\w+$/, '') 
-      .replace(/@finzfunAi\s*/g, '');
+      .replace(/@finzfunAI\s*/g, '');
   };
 
   const html = `
