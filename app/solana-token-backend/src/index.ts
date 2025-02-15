@@ -137,7 +137,9 @@ interface TweetData {
 
 async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
   const cleanContent = (content: string) => {
-    return content.replace(/\s+https:\/\/t\.co\/\w+$/, '');
+    return content
+      .replace(/\s+https:\/\/t\.co\/\w+$/, '') 
+      .replace(/@finzfunAi\s*/g, '');
   };
 
   const html = `
@@ -1548,6 +1550,10 @@ app.get('/actions.json', (req: Request, res: Response) => {
       }
     ]
   });
+});
+
+app.get(`/health`, (req: Request, res: Response) => {
+  res.send("ok");
 });
 
 app.listen(PORT, () => {

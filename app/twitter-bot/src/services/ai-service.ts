@@ -14,6 +14,8 @@ export class AiService {
 
   async generateSuggestions(tweetText: string): Promise<TokenSuggestion[]> {
     try {
+      const cleanedTweetText = tweetText.replace(/@finzfunAI\s*/gi, '');
+      
       const response = await this.openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -30,7 +32,7 @@ export class AiService {
           },
           {
             role: "user",
-            content: `Generate 4 unique token suggestions based on this tweet: "${tweetText}". 
+            content: `Generate 4 unique token suggestions based on this tweet: "${cleanedTweetText}". 
                      Each suggestion should follow this format exactly:
                      Name (TICKER) - Brief description`
           }
