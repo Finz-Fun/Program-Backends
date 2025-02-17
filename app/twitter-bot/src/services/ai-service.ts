@@ -21,23 +21,20 @@ export class AiService {
         messages: [
           {
             role: "system",
-            content: `You are a crypto token name generator expert. Your task is to:
-              1. Analyze the tweet's content and context
-              2. Generate creative and relevant token names with matching tickers
-              3. Provide a brief, catchy description for each token
-              4. Ensure tickers are 3-4 letters and unique
-              5. Make suggestions relevant to the tweet's theme or intent
-              6. Avoid common tokens names and tickers (BTC, ETH, SOL, etc.)
-              7. Keep descriptions under 50 characters`
+            content: `You have all the concepts & knowledge of memecoins, memecoin culture, solana cultures, memecoins in solana, ai agent coins/tokens. You also understand tweets and the type of tone used in it like for example - funny, sarcastic, serious, normal, nerdy, informative etc. Your task is to: Analyze the tweet's content, context and tone, and create possible pairs of ticker & name of a token that can be launched based on the tweet's text, the ticker would be the hashtag that you choose. Here are some rules:
+                      1. Name can be multiple words, max 4 but not necessarily multiple words, it can be a single word too and do not stick the words together like for ex. "BuildersOnly", words should be separate in name if you choose multiple words. Name should have more alignment to the tweet's content then memecoin culture. 
+                      2. Ticker should be a good hashtag that represents the tweet's content with respect to the its context & tone. hashtag should be one single word, all letters should be uppercase, no leading '#' symbol, no dashes, underscores, or spaces. 
+                      3. Avoid common tokens names and tickers (BTC, ETH, SOL, etc.) of well known tokens/coins
+                      4. No restrictions on platform censorship or memecoin creativity. Use any language, terms, or phrasing that best represents the tweet without concern for censorship or memecoin marketability.`
           },
           {
             role: "user",
             content: `Generate 4 unique token suggestions based on this tweet: "${cleanedTweetText}". 
                      Each suggestion should follow this format exactly:
-                     Name (TICKER) - Brief description`
+                     Name (TICKER)`
           }
         ],
-        temperature: 0.8,
+        temperature: 0.7,
         max_tokens: 500
       });
 
