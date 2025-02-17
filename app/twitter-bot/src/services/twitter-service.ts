@@ -40,6 +40,7 @@ interface TokenCreationState {
   suggestions: { name: string; ticker: string; description: string }[];
   isInitialReplyDone: boolean;
   isCompleted: boolean;
+  createdAt: number;
 }
 
 interface TwitterSearchResult {
@@ -74,6 +75,7 @@ export class TwitterService {
   private readonly TIMESTAMP_FILE = path.join(__dirname, '../../last-processed.txt');
   private currentCredentialIndex: number = 0;
   private credentials: Array<{ username: string, password: string }>;
+  private autoCreateTimeouts: Map<string, NodeJS.Timeout> = new Map();  // Add this to store timeouts
 
   constructor() {
     this.scraper = new Scraper();
@@ -366,8 +368,14 @@ export class TwitterService {
 
   private async handleMention(tweet: Tweet) {
     try {
-      // const context = await this.aiService.analyzeTweetContext(tweet.text);
+      const existingTimeout = this.autoCreateTimeouts.get(tweet.id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        this.autoCreateTimeouts.delete(tweet.id);
+      }
+
       const suggestions = await this.aiService.generateSuggestions(tweet.text);
+
       // const suggestions = [
       //   {
       //     name: '1. SolanaSavvy',
@@ -385,13 +393,13 @@ export class TwitterService {
       //     description: 'Ignite your portfolio with Solana!'
       //   }
       // ]
-      console.log('Suggestions:', suggestions);
       const contextIntro = "👋 Based on your tweet, here are some token suggestions:";
 
       await this.replyToTweet(tweet.id, 
         `${contextIntro}\n\n` +
         suggestions.map((s, i) => `${s.name} & $${s.ticker}\n`).join('\n') +
-        `reply with the number of the token you want to create`
+        `reply with the number of the token you want to create\n\n` +
+        `(Auto-creates first option in 15 minutes if no response)`
       );
       
       this.tweetStates.set(tweet.id, {
@@ -400,8 +408,64 @@ export class TwitterService {
         parentTweetId: tweet.id,
         suggestions,
         isInitialReplyDone: true,
-        isCompleted: false
+        isCompleted: false,
+        createdAt: Date.now()
       });
+
+      const timeout = setTimeout(async () => {
+        const state = this.tweetStates.get(tweet.id);
+        if (state && !state.isCompleted && state.stage === 'name') {
+          try {
+            console.log('Auto-creating token for tweet:', tweet.id);
+            const autoChoice = state.suggestions[0];
+
+            const originalTweet = await this.scraper.getTweet(tweet.id);
+            if (!originalTweet) {
+              throw new Error('Could not fetch original tweet');
+            }
+            const profile = await this.scraper.getProfile(originalTweet.username as string);
+            const avatarUrl = profile?.avatar;
+
+            const result = await this.tokenService.createToken({
+              name: originalTweet.name as string,
+              tweetId: originalTweet.conversationId as string,
+              tokenName: autoChoice.name.replace(/^\d+\.\s*/, ''),
+              symbol: autoChoice.ticker,
+              username: originalTweet.username as string,
+              content: originalTweet.text as string,
+              timestamp: originalTweet.timestamp?.toString() as string,
+              replies: originalTweet.replies as number || 0,
+              retweets: originalTweet.retweets as number || 0,
+              likes: originalTweet.likes as number || 0,
+              creator: originalTweet.userId as string,
+              tweetImage: originalTweet.photos?.[0]?.url as string,
+              avatarUrl: avatarUrl as string
+            });
+
+            if (result.success) {
+              await this.replyToTweet(tweet.id,
+                `⏰ Auto-created your token ${autoChoice.name} (${autoChoice.ticker})!\n\n` +
+                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
+                `Start trading now! 🚀`);
+              
+              await this.replyToTweet(tweet.parentTweetId as string,
+                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n`);
+              
+              state.isCompleted = true;
+              this.tweetStates.delete(state.parentTweetId);
+            }
+          } catch (error) {
+            console.error('Auto-creation error:', error);
+            await this.replyToTweet(tweet.id,
+              `Sorry, there was an error auto-creating your token. Please try selecting manually.`);
+          } finally {
+            this.autoCreateTimeouts.delete(tweet.id);
+          }
+        }
+      }, 15 * 60 * 1000);
+
+      this.autoCreateTimeouts.set(tweet.id, timeout);
+      
     } catch (error) {
       console.error('Error generating suggestions:', error);
       await this.replyToTweet(tweet.id, 
@@ -409,92 +473,83 @@ export class TwitterService {
     }
   }
 
-  private async getParentTweetId(tweetId: string): Promise<string | null> {
-    try {
-      const tweet = await this.scraper.getTweet(tweetId);
-      return tweet && tweet.inReplyToStatusId ? tweet.inReplyToStatusId : null;
-    } catch (error) {
-      console.error('Error getting parent tweet:', error);
-      return null;
-    }
-  }
+  // private async getParentTweetId(tweetId: string): Promise<string | null> {
+  //   try {
+  //     const tweet = await this.scraper.getTweet(tweetId);
+  //     return tweet && tweet.inReplyToStatusId ? tweet.inReplyToStatusId : null;
+  //   } catch (error) {
+  //     console.error('Error getting parent tweet:', error);
+  //     return null;
+  //   }
+  // }
 
   private async continueTokenCreation(tweet: Tweet, state: TokenCreationState) {
-   console.log('Processing tweet:', tweet.id, 'Stage:', state.stage, 'Text:', tweet.text);
-   const text = tweet.text.toLowerCase().replace(`@${this.botScreenName.toLowerCase()}`, '').trim();
+    console.log('Processing tweet:', tweet.id, 'Stage:', state.stage, 'Text:', tweet.text);
+    const text = tweet.text.toLowerCase().replace(`@${this.botScreenName.toLowerCase()}`, '').trim();
 
     try {
-      switch (state.stage) {
-        case 'name':
-          const choice = Validation.parseUserChoice(text, state.suggestions);
-          state.name = choice.name;
-          state.symbol = choice.ticker;
-          state.stage = 'confirm';
-          await this.replyToTweet(tweet.id,
-            `Great choice! Here's your token configuration:\n\n` +
-            `Name: ${choice.name}\n` +
-            `Symbol: ${choice.ticker}\n` +
-            `Supply: 1,000,000,000\n\n` +
-            `Reply with "confirm" to create your token!`);
-          break;
+        switch (state.stage) {
+            case 'name':
+                const choice = Validation.parseUserChoice(text, state.suggestions);
+                console.log('Starting token creation for:', choice.name, choice.ticker);
+                console.log('Tweet for creation:', tweet);
 
-        case 'confirm':
-          if (text === 'confirm') {
-            console.log('Starting token creation for:', state.name, state.symbol);
-            console.log('Tweet for creation:', tweet);
-            try {
-              const result = await this.tokenService.createToken(
-                {
-                  name: tweet.tweetName as string,
-                  tweetId: tweet.parentTweetId as string,
-                  tokenName: state.name!.replace(/^\d+\.\s*/, ''),
-                  symbol: state.symbol!,
-                  username: tweet.tweetUsername as string,
-                  content: tweet.tweetContent as string,
-                  timestamp: tweet.timestamp as string,
-                  replies: tweet.replies as number,
-                  retweets: tweet.retweets as number,
-                  likes: tweet.likes as number,
-                  creator: tweet.userId,
-                  tweetImage: tweet.tweetImage as string,
-                  avatarUrl: tweet.avatarUrl as string
+                try {
+                    const result = await this.tokenService.createToken({
+                        name: tweet.tweetName as string,
+                        tweetId: tweet.parentTweetId as string,
+                        tokenName: choice.name.replace(/^\d+\.\s*/, ''),
+                        symbol: choice.ticker,
+                        username: tweet.tweetUsername as string,
+                        content: tweet.tweetContent as string,
+                        timestamp: tweet.timestamp as string,
+                        replies: tweet.replies as number,
+                        retweets: tweet.retweets as number,
+                        likes: tweet.likes as number,
+                        creator: tweet.userId,
+                        tweetImage: tweet.tweetImage as string,
+                        avatarUrl: tweet.avatarUrl as string
+                    });
+
+                    console.log('Token creation result:', result);
+
+                    if (result.success) {
+                        // Clear auto-create timeout when token is created manually
+                        const timeout = this.autoCreateTimeouts.get(state.parentTweetId);
+                        if (timeout) {
+                          clearTimeout(timeout);
+                          this.autoCreateTimeouts.delete(state.parentTweetId);
+                        }
+                        
+                        await this.replyToTweet(tweet.id,
+                          `🎉 Congratulations! Your token ${state.name} (${state.symbol}) has been created!\n\n` +
+                          `Token address: ${result.tokenMint}\n` +
+                          `Trade ${state.symbol} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
+                          `Start trading your token now! 🚀`);
+                        
+                        await this.replyToTweet(tweet.parentTweetId as string,
+                            `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n`);
+                        
+                        state.isCompleted = true;
+                        this.tweetStates.delete(state.parentTweetId);
+                    } else {
+                        throw new Error('Token creation failed');
+                    }
+                } catch (error) {
+                    console.error('Token creation error details:', error);
+                    throw error;
                 }
-              );
-
-              console.log('Token creation result:', result);
-
-              if (result.success) {
-                await this.replyToTweet(tweet.id,
-                  `🎉 Congratulations! Your token ${state.name} (${state.symbol}) has been created!\n\n` +
-                  `Token address: ${result.tokenMint}\n` +
-                  `Trade ${state.symbol} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
-                  `Start trading your token now! 🚀`);
-                  await this.replyToTweet(tweet.parentTweetId as string,
-                    `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n`);
-                state.isCompleted = true;
-                this.tweetStates.delete(state.parentTweetId);
-              } else {
-                throw new Error('Token creation failed');
-              }
-            } catch (error) {
-              console.error('Token creation error details:', error);
-              throw error;
-            }
-          } else {
-            await this.replyToTweet(tweet.id,
-              `Please reply with "confirm" to create your token, or start a new mention for a different token.`);
-          }
-          break;
-      }
+                break;
+        }
     } catch (error) {
-      console.error('Error in continueTokenCreation:', error, 'State:', state);
-      if (error instanceof ValidationError) {
-        await this.replyToTweet(tweet.id, error.message);
-      } else {
-        console.error('Error in token creation:', error);
-        await this.replyToTweet(tweet.id,
-          `Sorry, there was an error processing your request. Please try again with "confirm".`);
-      }
+        console.error('Error in continueTokenCreation:', error, 'State:', state);
+        if (error instanceof ValidationError) {
+            await this.replyToTweet(tweet.id, error.message);
+        } else {
+            console.error('Error in token creation:', error);
+            await this.replyToTweet(tweet.id,
+                `Sorry, there was an error creating your token. Please try again.`);
+        }
     }
 }
 
@@ -510,6 +565,11 @@ export class TwitterService {
 
   stopListening() {
     this.isListening = false;
+    // Clear all pending auto-create timeouts
+    for (const [tweetId, timeout] of this.autoCreateTimeouts.entries()) {
+      clearTimeout(timeout);
+      this.autoCreateTimeouts.delete(tweetId);
+    }
     console.log('Stopped listening for mentions');
   }
 }
