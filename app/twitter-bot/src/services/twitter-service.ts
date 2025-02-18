@@ -37,7 +37,7 @@ interface TokenCreationState {
   symbol?: string;
   userId: string;  
   parentTweetId: string; 
-  suggestions: { name: string; ticker: string; description: string }[];
+  suggestions: { name: string; ticker: string }[];
   isInitialReplyDone: boolean;
   isCompleted: boolean;
   createdAt: number;
@@ -375,7 +375,7 @@ export class TwitterService {
       }
 
       const suggestions = await this.aiService.generateSuggestions(tweet.text);
-
+      console.log('suggestions', suggestions);
       // const suggestions = [
       //   {
       //     name: '1. SolanaSavvy',
@@ -397,7 +397,7 @@ export class TwitterService {
 
       await this.replyToTweet(tweet.id, 
         `${contextIntro}\n\n` +
-        suggestions.map((s, i) => `${s.name} & $${s.ticker}\n`).join('\n') +
+        suggestions.map((s, i) => `\n${i+1}. ${s.name} & ${s.ticker}\n`).join('\n') +
         `reply with the number of the token you want to create\n\n` +
         `(Auto-creates first option in 15 minutes if no response)`
       );

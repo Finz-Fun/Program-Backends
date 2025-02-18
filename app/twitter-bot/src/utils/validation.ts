@@ -36,18 +36,18 @@ export const Validation = {
     // Convert to uppercase for consistency
     ticker = ticker.toUpperCase();
 
-    if (ticker.length < 3 || ticker.length > 4) {
-      throw new ValidationError('Token ticker must be 3-4 characters');
+    if (ticker.length < 3 || ticker.length > 15) {
+      throw new ValidationError('Token ticker must be 3-15 characters');
     }
 
     // Only allow capital letters
-    const validTickerRegex = /^[A-Z]{3,4}$/;
+    const validTickerRegex = /^[A-Z]{3,15}$/;
     if (!validTickerRegex.test(ticker)) {
       throw new ValidationError('Token ticker can only contain capital letters');
     }
 
     // Check for reserved tickers
-    const reservedTickers = ['SOL', 'BTC', 'ETH', 'USD'];
+    const reservedTickers = ['SOL', 'BTC', 'ETH', 'USD', 'USDT', 'USDC'];
     if (reservedTickers.includes(ticker)) {
       throw new ValidationError('This ticker is reserved and cannot be used');
     }
@@ -63,8 +63,8 @@ export const Validation = {
       return suggestions[numberChoice - 1];
     }
 
-    // Check if user provided custom name/ticker
-    const customFormat = /^([A-Za-z0-9\s]+)\s*\(([A-Z]{3,4})\)$/;
+    // Updated regex to allow 3-8 character tickers
+    const customFormat = /^([A-Za-z0-9\s]+)\s*\(([A-Z]{3,15})\)$/;
     const match = response.match(customFormat);
     
     if (match) {
@@ -75,7 +75,6 @@ export const Validation = {
         return {
           name: name.trim(),
           ticker: ticker.trim(),
-          description: 'Custom token' // Default description for custom tokens
         };
       }
     }

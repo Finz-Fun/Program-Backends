@@ -15,6 +15,7 @@ export class AiService {
   async generateSuggestions(tweetText: string): Promise<TokenSuggestion[]> {
     try {
       const cleanedTweetText = tweetText.replace(/@finzfunAI\s*/gi, '');
+      console.log('cleanedTweetText', cleanedTweetText);
       
       const response = await this.openai.chat.completions.create({
         model: "gpt-4o",
@@ -34,13 +35,20 @@ export class AiService {
                      Name (TICKER)`
           }
         ],
-        temperature: 0.7,
-        max_tokens: 500
+        temperature: 0.5,
+        max_tokens: 400
       });
+
+      // console.log('response', response.choices);
+      // console.log('response.choices[0]', response.choices[0]);
+      // console.log('response.choices[0]?.message', response.choices[0]?.message);
+      // console.log('response.choices[0]?.message?.content', response.choices[0]?.message?.content);
 
       const suggestions = this.parseSuggestions(
         response.choices[0]?.message?.content || ''
       );
+
+      // console.log('suggestions', suggestions);
 
 
       return suggestions
@@ -57,36 +65,33 @@ export class AiService {
     const lines = text.split('\n').filter(line => line.trim());
 
     for (const line of lines) {
-      const match = line.match(/(.+?)\s*\(([A-Z]{3,4})\)\s*-\s*(.+)/);
+      const match = line.match(/\d+\.\s*(.+?)\s*\(([A-Z]+)\)/);
       if (match) {
         suggestions.push({
           name: match[1].trim(),
-          ticker: match[2].trim(),
-          description: match[3].trim()
+          ticker: match[2].trim()
         });
       }
     }
 
+    console.log('Parsed suggestions:', suggestions);
     return suggestions;
   }
 
   private validateSuggestion(suggestion: TokenSuggestion): boolean {
-
     if (!suggestion.name || suggestion.name.length < 3 || suggestion.name.length > 32) {
+      console.log(`Invalid name: ${suggestion.name}`);
       return false;
     }
 
-    if (!suggestion.ticker || !/^[A-Z]{3,4}$/.test(suggestion.ticker)) {
+    if (!suggestion.ticker || !/^[A-Z]{3,15}$/.test(suggestion.ticker)) {
+      console.log(`Invalid ticker: ${suggestion.ticker}`);
       return false;
     }
-
 
     const reservedTickers = ['BTC', 'ETH', 'SOL', 'USD', 'USDT', 'USDC'];
     if (reservedTickers.includes(suggestion.ticker)) {
-      return false;
-    }
-
-    if (!suggestion.description || suggestion.description.length > 50) {
+      console.log(`Reserved ticker: ${suggestion.ticker}`);
       return false;
     }
 

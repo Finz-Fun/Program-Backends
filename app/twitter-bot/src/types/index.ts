@@ -1,7 +1,6 @@
 export interface TokenSuggestion {
     name: string;
     ticker: string;
-    description: string;
   }
   
   export interface TokenCreationResult {
