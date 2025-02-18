@@ -306,7 +306,7 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
               
               <div class="tweet-content">${cleanContent(tweetData.content)}</div>
 
-              ${tweetData.tweetImage!==null ? `
+              ${tweetData.tweetImage ? `
                 <div class="tweet-image">
                   <img src="${tweetData.tweetImage}" alt="Tweet image" />
                 </div>
@@ -448,8 +448,8 @@ app.post("/create-token", async (req, res) => {
       retweets: Number(req.body.retweets) || 0,
       likes: Number(req.body.likes) || 0,
       creator: String(req.body.creator),
-      tweetImage: String(req.body.tweetImage) || null,
-      avatarUrl: String(req.body.avatarUrl)
+      avatarUrl: String(req.body.avatarUrl),
+      ...(req.body.tweetImage && { tweetImage: String(req.body.tweetImage) })
     };
     
     const imageBuffer = await generateTweetImage(tweetData);
