@@ -514,7 +514,6 @@ export class TwitterService {
                     console.log('Token creation result:', result);
 
                     if (result.success) {
-                        // Clear auto-create timeout when token is created manually
                         const timeout = this.autoCreateTimeouts.get(state.parentTweetId);
                         if (timeout) {
                           clearTimeout(timeout);
@@ -522,9 +521,9 @@ export class TwitterService {
                         }
                         
                         await this.replyToTweet(tweet.id,
-                          `🎉 Congratulations! Your token ${state.name} (${state.symbol}) has been created!\n\n` +
+                          `🎉 Congratulations! Your token ${choice.name} (${choice.ticker}) has been created!\n\n` +
                           `Token address: ${result.tokenMint}\n` +
-                          `Trade ${state.symbol} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
+                          `Trade ${choice.ticker} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
                           `Start trading your token now! 🚀`);
                         
                         await this.replyToTweet(tweet.parentTweetId as string,
