@@ -393,13 +393,13 @@ export class TwitterService {
       //     description: 'Ignite your portfolio with Solana!'
       //   }
       // ]
-      const contextIntro = "👋 Based on your tweet, here are some token suggestions:";
+      const contextIntro = "Based on your tweet, here are some token suggestions:";
 
       await this.replyToTweet(tweet.id, 
         `${contextIntro}\n\n` +
-        suggestions.map((s, i) => `\n${i+1}. ${s.name} & ${s.ticker}\n`).join('\n') +
-        `reply with the number of the token you want to create\n\n` +
-        `(Auto-creates first option in 15 minutes if no response)`
+        suggestions.map((s, i) => `\n${i+1}. ${s.name} (${s.ticker})\n`).join('\n') +
+        `Reply with a number, OR create a custom one in the format:\n\n` +
+        `Name (TICKER)`
       );
       
       this.tweetStates.set(tweet.id, {
