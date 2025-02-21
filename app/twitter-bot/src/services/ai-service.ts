@@ -8,17 +8,18 @@ export class AiService {
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
     });
   }
 
   async generateSuggestions(tweetText: string): Promise<TokenSuggestion[]> {
     try {
       const cleanedTweetText = tweetText.replace(/@finzfunAI\s*/gi, '');
-      console.log('cleanedTweetText', cleanedTweetText);
+      // console.log('cleanedTweetText', cleanedTweetText);
       
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gemini-2.0-flash",
         messages: [
           {
             role: "system",
