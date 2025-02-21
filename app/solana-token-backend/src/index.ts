@@ -78,6 +78,34 @@ const s3Client = new S3Client({
   }
 });
 
+// Add these variables at the top level of the file, after the imports
+let cachedSolanaPrice: number | null = null;
+let lastFetchTime: number = 0;
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+// Create a function to get the Solana price with caching
+async function getSolanaPrice(): Promise<number> {
+  const now = Date.now();
+  
+  // If cache is valid, return cached price
+  if (cachedSolanaPrice && (now - lastFetchTime) < CACHE_DURATION) {
+    return cachedSolanaPrice;
+  }
+
+  // Cache expired or doesn't exist, fetch new price
+  try {
+    const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const data = await response.json();
+    cachedSolanaPrice = data.solana.usd;
+    lastFetchTime = now;
+    return cachedSolanaPrice ? cachedSolanaPrice : 1;
+  } catch (error) {
+    console.log('Error fetching solana price:', error);
+    // Return last cached price if available, otherwise default to 1
+    return cachedSolanaPrice || 1;
+  }
+}
+
 async function uploadToS3(
   name: string, 
   symbol: string, 
@@ -1425,11 +1453,9 @@ app.get('/api/tokens', async (req: Request, res: Response) => {
     let multiplier = 1;
 
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-        const data = await response.json();
-        multiplier = data.solana.usd;
+      multiplier = await getSolanaPrice();
     } catch (error) {
-      console.log('Error fetching solana price:', error);
+      console.log('Error getting solana price:', error);
     }
     
     const tokenDataPromises = tokens.map(async (token) => {
@@ -1485,11 +1511,9 @@ app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) =>
     let multiplier = 1;
 
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-        const data = await response.json();
-        multiplier = data.solana.usd;
+      multiplier = await getSolanaPrice();
     } catch (error) {
-      console.log('Error fetching solana price:', error);
+      console.log('Error getting solana price:', error);
     }
     
     const tokenDataPromises = tokens.map(async (token) => {
@@ -1502,7 +1526,7 @@ app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) =>
           symbol: token.symbol,
           imageUrl: token.imageUrl,
           priceSol: poolData.price,
-          priceUsd: poolData.price * multiplier, 
+          priceUsd: (poolData.price===0) ? 25*multiplier :poolData.price * multiplier, 
           avatarUrl: creator?.profileImage || '',
           tokenMint: token.mintAddress
         };
