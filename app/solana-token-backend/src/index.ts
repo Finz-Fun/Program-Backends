@@ -78,21 +78,18 @@ const s3Client = new S3Client({
   }
 });
 
-// Add these variables at the top level of the file, after the imports
 let cachedSolanaPrice: number | null = null;
 let lastFetchTime: number = 0;
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+const CACHE_DURATION = 15 * 60 * 1000;
 
-// Create a function to get the Solana price with caching
+
 async function getSolanaPrice(): Promise<number> {
   const now = Date.now();
   
-  // If cache is valid, return cached price
   if (cachedSolanaPrice && (now - lastFetchTime) < CACHE_DURATION) {
     return cachedSolanaPrice;
   }
 
-  // Cache expired or doesn't exist, fetch new price
   try {
     const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
     const data = await response.json();
@@ -101,7 +98,6 @@ async function getSolanaPrice(): Promise<number> {
     return cachedSolanaPrice ? cachedSolanaPrice : 1;
   } catch (error) {
     console.log('Error fetching solana price:', error);
-    // Return last cached price if available, otherwise default to 1
     return cachedSolanaPrice || 1;
   }
 }
@@ -1457,6 +1453,8 @@ app.get('/api/tokens', async (req: Request, res: Response) => {
     } catch (error) {
       console.log('Error getting solana price:', error);
     }
+
+    console.log("multiplier", multiplier)
     
     const tokenDataPromises = tokens.map(async (token) => {
       try {
