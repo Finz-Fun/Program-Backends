@@ -66,8 +66,11 @@ export const Validation = {
     // Updated regex to allow 3-8 character tickers
     const customFormat = /^([A-Za-z0-9\s]+)\s*\(([A-Z]{3,15})\)$/;
     const match = response.match(customFormat);
-    
+    // console.log("came here")
+    // console.log(response)
+    // console.log("match",match)
     if (match) {
+      // console.log("match happened")
       const [_, name, ticker] = match;
       
       // Validate both parts

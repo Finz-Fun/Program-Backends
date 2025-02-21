@@ -67,8 +67,8 @@ export class TwitterService {
   private lastProcessedTimestamp: number;
   private aiService: AiService;
   private tokenService: TokenService;
-  private readonly MIN_BACKOFF = 10000;  
-  private readonly MAX_BACKOFF = 30000;  
+  private readonly MIN_BACKOFF = 150000;  
+  private readonly MAX_BACKOFF = 240000;  
   private readonly ERROR_MIN_BACKOFF = 30000;  
   private readonly ERROR_MAX_BACKOFF = 90000;
   private readonly SEARCH_TIMEOUT = 4000; // 4 second timeout
@@ -485,7 +485,7 @@ export class TwitterService {
 
   private async continueTokenCreation(tweet: Tweet, state: TokenCreationState) {
     console.log('Processing tweet:', tweet.id, 'Stage:', state.stage, 'Text:', tweet.text);
-    const text = tweet.text.toLowerCase().replace(`@${this.botScreenName.toLowerCase()}`, '').trim();
+    const text = tweet.text.replace(/@\w+/g, '').trim();
 
     try {
         switch (state.stage) {

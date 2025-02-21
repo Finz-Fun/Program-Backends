@@ -1442,7 +1442,7 @@ app.get('/api/tokens', async (req: Request, res: Response) => {
           symbol: token.symbol,
           imageUrl: token.imageUrl,
           // priceSol: poolData.price,
-          priceUsd: poolData.price * multiplier, 
+          priceUsd: (poolData.price===0) ? 25*multiplier :poolData.price * multiplier, 
           avatarUrl: creator?.profileImage || '',
           tokenMint: token.mintAddress,
           tweetLink:  `https://x.com/${creator?.username}/status/${token.tweetId}`,
