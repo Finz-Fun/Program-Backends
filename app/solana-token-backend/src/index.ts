@@ -26,6 +26,7 @@ import nodeHtmlToImage from 'node-html-to-image';
 import { Token } from './models/tokenSchema';
 import Walletmodel from './models/walletSchema';
 import Mentions from './models/mentionsSchema';
+import { createClient } from 'redis';
 dotenv.config();
 
 const app = express();
@@ -41,6 +42,28 @@ app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: 
 app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
 
 connectDB()
+
+export const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  socket: {
+    keepAlive: 30000,
+    reconnectStrategy: (retries: number) => {
+      if (retries > 20) {
+        console.error('Max redis reconnection attempts reached');
+        return new Error('Max redis reconnection attempts reached');
+      }
+      return Math.min(retries * 100, 3000);
+    },
+  }
+});
+
+redisClient.connect();
+redisClient.on('error', (error:any) => {
+  console.error('Redis connection error:', error);
+});
+redisClient.on('connect', () => {
+  console.log('Redis connected');
+});
 
 
 
@@ -1540,6 +1563,26 @@ app.get('/api/analytics', async (req: Request, res: Response) => {
   }
 });
 
+
+app.get("/candles/:tokenMint", async (req, res) => {
+  const { tokenMint } = req.params;
+  const { start, end } = req.query;
+  
+  try {
+    const [historicalCandles, currentCandle] = await Promise.all([
+      redisClient.zRange(`candles:${tokenMint}`, Number(start) || 0, Number(end) || -1),
+      redisClient.get(`current_candle:${tokenMint}`)
+    ]);
+    
+    res.json([
+      ...historicalCandles.map((candle:any) => JSON.parse(candle)),
+      ...(currentCandle ? [JSON.parse(currentCandle)] : [])
+    ]);
+  } catch (error:any) {
+    console.error('Error fetching candles:', error);
+    res.status(500).json({ error: "Failed to fetch candles" });
+  }
+});
 
 
 app.get('/actions.json', (req: Request, res: Response) => {
