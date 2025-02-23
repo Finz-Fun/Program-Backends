@@ -50,18 +50,35 @@ export async function subscribeToPoolUpdates(
 
   const subscriptionId = program.provider.connection.onAccountChange(
     poolPda,
-    async (accountInfo) => {
+    (accountInfo) => {
       try {
-        const poolData = await fetchPoolData(program, tokenMint);
+        const stateData = program.coder.accounts.decode(
+          'liquidityPool',
+          accountInfo.data
+        );
+
+        const reserveSol = stateData.reserveSol;
+    
+        const totalSolWithVirtual = reserveSol.add(VIRTUAL_SOL);
+    
+        const mcapInSol = parseInt(totalSolWithVirtual.toString())/ parseInt((new BN(1_000_000_000)).toString());
+
+        const poolData = {
+          price: mcapInSol,
+          reserveSol: parseInt(reserveSol.toString()),
+          reserveToken: parseInt((stateData.reserveToken).toString())
+        };
+
         callback(poolData);
       } catch (error) {
         console.error('Error processing pool update:', error);
       }
     },
-    'confirmed'
+    {
+      commitment: 'finalized',
+      encoding: 'base64'
+    }
   );
-
-  console.log("subscription id", subscriptionId)
 
   return subscriptionId;
 }
