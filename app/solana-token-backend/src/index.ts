@@ -1028,6 +1028,8 @@ const fetchReserveToken = async (tokenMint: string) => {
         reserveToken: new BN(0), 
         mcap: 0,
         creatorName: creator?.username,
+        creatorImage: creator?.profileImage,
+        tweetLink: null,
         tokenName: null,
         tokenSymbol: null, 
         isLiquidityActive: false,
@@ -1053,6 +1055,8 @@ const fetchReserveToken = async (tokenMint: string) => {
         reserveToken: stateData.reserveToken,
         mcap: mcapInSol,
         creatorName: creator?.username,
+        creatorImage: creator?.profileImage,
+        tweetLink: `https://x.com/${creator?.username}/status/${token.tweetId}`,
         tokenName: token.name,
         tokenSymbol: token.symbol,
         isLiquidityActive: token.liquidity,
@@ -1064,6 +1068,8 @@ const fetchReserveToken = async (tokenMint: string) => {
         reserveToken: new BN(0),
         mcap: 0,
         creatorName: creator?.username,
+        creatorImage: creator?.profileImage,
+        tweetLink: `https://x.com/${creator?.username}/status/${token.tweetId}`,
         tokenName: token.name,
         tokenSymbol: token.symbol,
         isLiquidityActive: token.liquidity,
@@ -1076,6 +1082,8 @@ const fetchReserveToken = async (tokenMint: string) => {
       reserveToken: new BN(0), 
       mcap: 0,
       creatorName: null,
+      creatorImage: null,
+      tweetLink: null,
       tokenName: null,
       tokenSymbol: null, 
       isLiquidityActive: false,
@@ -1358,7 +1366,7 @@ app.get('/api/:tokenMint/pool-data', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const token = await fetchReserveToken(tokenMint);
-    res.json({reserveToken: token.reserveToken.toString(), tokenName:token.tokenName, tokenSymbol:token.tokenSymbol, isLiquidityActive:token.isLiquidityActive, imageUrl:token.imageUrl, creatorName:token.creatorName, mcap:token.mcap.toString()});
+    res.json({reserveToken: token.reserveToken.toString(), tokenName:token.tokenName, tokenSymbol:token.tokenSymbol, isLiquidityActive:token.isLiquidityActive, imageUrl:token.imageUrl, creatorName:token.creatorName, mcap:token.mcap.toString(), creatorImage:token.creatorImage, tweetLink:token.tweetLink});
   } catch (error: any) {
     console.error('Error fetching pool data:', error);
     res.status(500).json({ error: error.message });
