@@ -1451,7 +1451,6 @@ app.get('/api/tokens', async (req: Request, res: Response) => {
       symbol: string;
       imageUrl: string;
       priceSol: number;
-      priceUsd: number;
       avatarUrl: string;
       tokenMint: string;
       tweetLink: string;
@@ -1502,9 +1501,10 @@ app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) =>
       symbol: string;
       imageUrl: string;
       priceSol: number;
-      priceUsd: number;
       avatarUrl: string;
       tokenMint: string;
+      tweetLink: string;
+      username: string;
     }
     const tokens = await Token.find({creator: req.params.creatorId });
     
@@ -1519,7 +1519,9 @@ app.get('/api/tokens/creator/:creatorId', async (req: Request, res: Response) =>
           imageUrl: token.imageUrl,
           priceSol: poolData.price,
           avatarUrl: creator?.profileImage || '',
-          tokenMint: token.mintAddress
+          tokenMint: token.mintAddress,
+          tweetLink:  `https://x.com/${creator?.username}/status/${token.tweetId}`,
+          username: creator?.username
         };
       } catch (error) {
         console.error(`Error fetching data for token ${token.mintAddress}:`, error);
