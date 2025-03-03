@@ -282,13 +282,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 
         let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
             + virtual_sol / 1_000_000_000.0;
-        msg!("Current bought amount (with virtual): {}", bought_amount);
 
         let root_val = (PROPORTION as f64 * adjusted_amount as f64 / 1_000_000_000.0 + bought_amount * bought_amount).sqrt();
-        msg!("Root value: {}", root_val);
 
         let amount_out_f64 = (root_val - bought_amount) * 1_000_000.0 * 1_000_000_000.0;
-        msg!("Tokens out: {}", amount_out_f64);
 
         let amount_out = amount_out_f64.round() as u64;
 
@@ -302,7 +299,12 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 
         self.transfer_sol_to_pool(authority, pool_sol_vault, adjusted_amount_u64, system_program)?;
         self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out, token_program)?;
-
+        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"BUY\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
+        token_accounts.0.key(),
+        adjusted_amount_u64,
+        amount_out,
+        authority.key()
+    );
         Ok(())
     }
 
@@ -330,14 +332,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 
         let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
             + virtual_sol / 1_000_000_000.0;
-        msg!("Current bought amount (with virtual): {}", bought_amount);
 
         let result_amount = (self.total_supply as f64 - self.reserve_token as f64 - amount as f64) / 1_000_000.0 / 1_000_000_000.0 
             + virtual_sol / 1_000_000_000.0;
-        msg!("Result amount: {}", result_amount);
 
         let amount_out_f64 = (bought_amount * bought_amount - result_amount * result_amount) / PROPORTION as f64 * 1_000_000_000.0;
-        msg!("SOL out: {}", amount_out_f64);
 
 
         if fees < 0.0 || fees > 100.0 {
@@ -377,7 +376,12 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.reserve_sol -= amount_out_f64.round() as u64;
 
         self.transfer_sol_from_pool(pool_sol_vault, authority, amount_out, bump, system_program)?;
-
+        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"SELL\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
+        token_accounts.0.key(),
+        amount_out_f64.round(),
+        amount,
+        authority.key() // This is the user's wallet address
+    );
         Ok(())
     }
 
