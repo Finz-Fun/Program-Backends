@@ -8,7 +8,7 @@ pub mod consts;
 
 use crate::instructions::*;
 
-declare_id!("4VoftnsA8NCis8Lra6QkvfpeZzJFGn7HfnrY9vyDu5nj");
+declare_id!("DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa");
 
 #[program]
 pub mod ai_agent {

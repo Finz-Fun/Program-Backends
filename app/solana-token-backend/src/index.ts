@@ -26,6 +26,7 @@ import nodeHtmlToImage from 'node-html-to-image';
 import { Token } from './models/tokenSchema';
 import Walletmodel from './models/walletSchema';
 import Mentions from './models/mentionsSchema';
+import { Transaction as TransactionModel } from './models/transactionSchema';
 import { createClient } from 'redis';
 dotenv.config();
 
@@ -1592,6 +1593,23 @@ app.get("/candles/:tokenMint", async (req, res) => {
     console.error('Error fetching candles:', error);
     res.status(500).json({ error: "Failed to fetch candles" });
   }
+});
+
+
+app.get('/transactions/:tokenMintAddress', async (req: Request, res: Response) => {
+  const limit = Number(req.query.limit) || 100;
+  const recentTransactions = await TransactionModel.find({ tokenMintAddress: req.params.tokenMintAddress })
+  .sort({ timestamp: -1 })
+  .limit(limit);
+  const transactions = recentTransactions.map((transaction) => ({
+    type: transaction.type,
+    timestamp: transaction.timestamp,
+    solAmount: transaction.solAmount,
+    walletAddress: transaction.walletAddress,
+    tokenAmount: transaction.tokenAmount,
+    signature: transaction.signature
+  }));
+  res.json(transactions);
 });
 
 
