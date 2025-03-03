@@ -301,7 +301,7 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out, token_program)?;
         msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"BUY\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
         token_accounts.0.key(),
-        adjusted_amount_u64,
+        amount,
         amount_out,
         authority.key()
     );
@@ -373,14 +373,14 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.transfer_token_to_pool(token_accounts.2, token_accounts.1, amount, authority, token_program)?;
 
         self.reserve_token += amount;
-        self.reserve_sol -= amount_out_f64.round() as u64;
+        self.reserve_sol -= amount_out;
 
         self.transfer_sol_from_pool(pool_sol_vault, authority, amount_out, bump, system_program)?;
         msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"SELL\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
         token_accounts.0.key(),
-        amount_out_f64.round(),
+        amount_out,
         amount,
-        authority.key() // This is the user's wallet address
+        authority.key()
     );
         Ok(())
     }
