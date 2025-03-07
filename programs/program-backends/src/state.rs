@@ -305,6 +305,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         amount_out,
         authority.key()
     );
+       msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{}}}",
+        token_accounts.0.key(),
+        (self.reserve_sol + virtual_sol.round() as u64)
+    );
         Ok(())
     }
 
@@ -381,6 +385,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         amount_out,
         amount,
         authority.key()
+    );
+        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{}}}",
+        token_accounts.0.key(),
+        (self.reserve_sol + virtual_sol.round() as u64)
     );
         Ok(())
     }
