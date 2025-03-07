@@ -14,7 +14,6 @@ export const transactionQueue = new Queue('transaction-updates', {
   connection,
 });
 
-// Queue events monitoring
 const queueEvents = new QueueEvents('transaction-updates', { connection });
 
 queueEvents.on('waiting', ({ jobId }) => {
@@ -34,5 +33,29 @@ queueEvents.on('failed', ({ jobId, failedReason }) => {
 });
 
 queueEvents.on('error', error => {
+  console.error('Queue error:', error);
+});
+
+export const priceQueue = new Queue('price-updates', { connection });
+
+const priceQueueEvents = new QueueEvents('price-updates', { connection });
+
+priceQueueEvents.on('waiting', ({ jobId }) => {
+  console.log(`Added candle ${jobId} to queue`);
+});
+
+priceQueueEvents.on('active', ({ jobId }) => {
+  console.log(`Processing candle ${jobId}`);
+});
+
+priceQueueEvents.on('completed', ({ jobId }) => {
+  console.log(`Completed candle ${jobId}`);
+});
+
+priceQueueEvents.on('failed', ({ jobId, failedReason }) => {
+  console.error(`Failed candle ${jobId}:`, failedReason);
+});
+
+priceQueueEvents.on('error', error => {
   console.error('Queue error:', error);
 });
