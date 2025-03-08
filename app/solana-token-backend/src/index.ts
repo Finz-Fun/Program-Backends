@@ -189,6 +189,14 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
       .replace(/@finzfunAI\s*/g, '');
   };
 
+  function formatWalletAddress(address: string): string {
+    if (!address) return '';
+    // Take first 4 and last 4 characters
+    const start = address.slice(0, 4);
+    const end = address.slice(-4);
+    return `${start}...${end}`;
+  }
+
   const html= `<html>
 
   <head>
@@ -376,7 +384,7 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
               </div>
               <span class="username">@${tweetData.username}</span>
             </div>
-            <span class="ca">${tweetData.ca}</span>
+            <span class="ca">${formatWalletAddress(tweetData.ca)}</span>
             <div class="logo">
               <img src="https://app.finz.fun/logo.png" alt="Logo" />
             </div>
