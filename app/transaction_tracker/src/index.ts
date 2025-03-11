@@ -38,8 +38,8 @@ connection.onLogs(PROGRAM_ID, async (logs, ctx) => {
       console.error('Token mint address mismatch in logs');
       return;
     }
-    const timestamp = Date.now();
-    const timestampSeconds = Math.floor(timestamp / 1000);
+    const timestamp = Date.now()/1000;
+    const timestampSeconds = Math.floor(timestamp);
     const parsedData: ParsedTransactionData = {
       tokenMintAddress: transactionInfo.token_mint_address,
       type: transactionInfo.type,
