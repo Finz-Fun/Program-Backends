@@ -3,7 +3,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };
-use solana_program::pubkey;
+use anchor_lang::pubkey;
 
 use crate::state::{CurveConfiguration, LiquidityPool, LiquidityPoolAccount};
 
@@ -80,6 +80,7 @@ pub struct Buy<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
 
+    /// CHECK: Safe. Team account validated
     #[account(mut, address = TEAM_WALLET_PUBKEY)]
     pub team_account: UncheckedAccount<'info>
 

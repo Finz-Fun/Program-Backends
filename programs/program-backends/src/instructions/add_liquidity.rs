@@ -52,6 +52,7 @@ pub struct AddLiquidity<'info> {
     )]
     pub platform_token_account: Box<Account<'info, TokenAccount>>,
 
+    /// CHECK: Safe. This is the SOL vault for the pool, validated through seeds constraint
     #[account(
         mut,
         seeds = [LiquidityPool::SOL_VAULT_PREFIX.as_bytes(), token_mint.key().as_ref()],

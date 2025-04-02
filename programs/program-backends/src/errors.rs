@@ -52,4 +52,16 @@ pub enum CustomError {
 
     #[msg("Invalid fee percentage. It must be between 0.0 and 100.0.")]
     InvalidFeePercentage,
+
+    #[msg("Pool value is too low for migration")]
+    PoolValueTooLow,
+    
+    #[msg("Pool already migrated to Raydium")]
+    AlreadyMigrated,
+
+    #[msg("Insufficient SOL or Token liquidity in the pool for migration")]
+    InsufficientLiquidity,
+
+    #[msg("Calculation error occurred during migration")]
+    CalculationError,
 }

@@ -1,6 +1,7 @@
 use crate::consts::INITIAL_LAMPORTS_FOR_POOL;
 use crate::consts::PROPORTION;
 use crate::errors::CustomError;
+use anchor_lang::solana_program;
 use anchor_lang::{
     prelude::*,
     solana_program::{
@@ -41,23 +42,24 @@ impl LiquidityProvider {
 
 #[account]
 pub struct LiquidityPool {
-    pub creator: Pubkey,    
-    pub token: Pubkey,      
-    pub total_supply: u64,  
-    pub reserve_token: u64, 
-    pub reserve_sol: u64,   
-    pub bump: u8,           
+    pub creator: Pubkey,
+    pub token: Pubkey,
+    pub total_supply: u64,
+    pub reserve_token: u64,
+    pub reserve_sol: u64,
+    pub bump: u8,
+    pub migrated_to_raydium: bool, // Tracks migration status
 }
 
 impl LiquidityPool {
     pub const POOL_SEED_PREFIX: &'static str = "liquidity_pool";
     pub const SOL_VAULT_PREFIX: &'static str = "liquidity_sol_vault";
 
-    // Discriminator (8) + Pubkey (32) + Pubkey (32) + totalsupply (8)
-    // + reserve one (8) + reserve two (8) + Bump (1)
-    pub const ACCOUNT_SIZE: usize = 8 + 32 + 32 + 8 + 8 + 8 + 1;
+    // Discriminator (8) + creator (32) + token (32) + totalsupply (8)
+    // + reserve_token (8) + reserve_sol (8) + Bump (1) + migrated_to_raydium (1)
+    pub const ACCOUNT_SIZE: usize = 8 + 32 + 32 + 8 + 8 + 8 + 1 + 1;
 
-    // Constructor to initialize a LiquidityPool with two tokens and a bump for the PDA
+    // Constructor to initialize a LiquidityPool
     pub fn new(creator: Pubkey, token: Pubkey, bump: u8) -> Self {
         Self {
             creator,
@@ -66,6 +68,7 @@ impl LiquidityPool {
             reserve_token: 0_u64,
             reserve_sol: 0_u64,
             bump,
+            migrated_to_raydium: false,
         }
     }
 }
@@ -206,8 +209,8 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             INITIAL_LAMPORTS_FOR_POOL,
             system_program,
         )?;
-        self.total_supply = 1_000_000_000_000_000_000;
-        self.update_reserves(token_accounts.0.supply, INITIAL_LAMPORTS_FOR_POOL)?;
+        self.total_supply = 800_000_000_000_000_000;
+        self.update_reserves(800_000_000_000_000_000, INITIAL_LAMPORTS_FOR_POOL)?;
 
         Ok(())
     }
@@ -441,6 +444,25 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         Ok(())
     }
 
+    fn transfer_sol_to_pool(
+        &self,
+        from: &Signer<'info>,
+        to: &mut AccountInfo<'info>,
+        amount: u64,
+        system_program: &Program<'info, System>,
+    ) -> Result<()> {
+        let ix = solana_program::system_instruction::transfer(from.key, to.key, amount);
+        anchor_lang::solana_program::program::invoke(
+            &ix,
+            &[
+                from.to_account_info(),
+                to.clone(),
+                system_program.to_account_info(),
+            ],
+        )?;
+        Ok(())
+    }
+
     fn transfer_sol_from_pool(
         &self,
         from: &mut AccountInfo<'info>,
@@ -449,43 +471,25 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         bump: u8,
         system_program: &Program<'info, System>,
     ) -> Result<()> {
+        let seeds = &[
+            LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
+            self.token.as_ref(),
+            &[bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
 
-        system_program::transfer(
-            CpiContext::new_with_signer(
+        let ix = solana_program::system_instruction::transfer(from.key, to.key, amount);
+
+        anchor_lang::solana_program::program::invoke_signed(
+            &ix,
+            &[
+                from.to_account_info(),
+                to.to_account_info(),
                 system_program.to_account_info(),
-                system_program::Transfer {
-                    from: from.clone(),
-                    to: to.to_account_info().clone(),
-                },
-                &[&[
-                    LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
-                    self.token.key().as_ref(),
-                    &[bump],
-                ]],
-            ),
-            amount,
+            ],
+            signer_seeds,
         )?;
-        Ok(())
-    }
 
-    fn transfer_sol_to_pool(
-        &self,
-        from: &Signer<'info>,
-        to: &mut AccountInfo<'info>,
-        amount: u64,
-        system_program: &Program<'info, System>,
-    ) -> Result<()> {
-
-        system_program::transfer(
-            CpiContext::new(
-                system_program.to_account_info(),
-                system_program::Transfer {
-                    from: from.to_account_info(),
-                    to: to.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
         Ok(())
     }
 }

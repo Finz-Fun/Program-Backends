@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
-import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction} from "@solana/spl-token"
+import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {AiAgent, IDL } from './idl/ai_agent';
 import * as dotenv from 'dotenv';
@@ -15,7 +15,8 @@ import {
   TokenStandard,
 } from "@metaplex-foundation/mpl-token-metadata";
 import { mplToolbox } from "@metaplex-foundation/mpl-toolbox";
-import {  createSignerFromKeypair, keypairIdentity, percentAmount, publicKey, signerIdentity } from "@metaplex-foundation/umi";
+import { 
+  createSignerFromKeypair, keypairIdentity, percentAmount, publicKey, signerIdentity } from "@metaplex-foundation/umi";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { base58 } from '@metaplex-foundation/umi/serializers'
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -28,6 +29,121 @@ import Walletmodel from './models/walletSchema';
 import Mentions from './models/mentionsSchema';
 import { Transaction as TransactionModel } from './models/transactionSchema';
 import { createClient } from 'redis';
+import { RaydiumSwap } from './raydium-swap';
+import { CONFIG } from './raydium.config';
+import { 
+  LAMPORTS_PER_SOL,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import { createTransferInstruction } from '@solana/spl-token';
+
+async function getTokenBalance(raydiumSwap: RaydiumSwap, mint: string): Promise<number> {
+  const userTokenAccounts = await raydiumSwap.getOwnerTokenAccounts();
+  const tokenAccount = userTokenAccounts.find(account => 
+    account.accountInfo.mint.equals(new PublicKey(mint))
+  );
+  if (tokenAccount) {
+    const balance = await raydiumSwap.connection.getTokenAccountBalance(tokenAccount.pubkey);
+    return balance.value.uiAmount || 0;
+  }
+  return 0;
+}
+
+async function swap() {
+  console.log('Starting swap process...');
+  const raydiumSwap = new RaydiumSwap(CONFIG.RPC_URL as string, CONFIG.WALLET_SECRET_KEY as string);
+
+  await raydiumSwap.loadPoolKeys();
+  let poolInfo = raydiumSwap.findPoolInfoForTokens(CONFIG.BASE_MINT, CONFIG.QUOTE_MINT) 
+    || await raydiumSwap.findRaydiumPoolInfo(CONFIG.BASE_MINT, CONFIG.QUOTE_MINT);
+
+  if (!poolInfo) {
+    throw new Error("Couldn't find the pool info");
+  }
+
+  await raydiumSwap.createWrappedSolAccountInstruction(CONFIG.TOKEN_A_AMOUNT);
+
+  console.log('Fetching current priority fee...');
+  const priorityFee = await CONFIG.getPriorityFee();
+  console.log(`Current priority fee: ${priorityFee} SOL`);
+
+  console.log('Creating swap transaction...');
+  const swapTx = await raydiumSwap.getSwapTransaction(
+    CONFIG.QUOTE_MINT,
+    CONFIG.TOKEN_A_AMOUNT,
+    poolInfo,
+    CONFIG.USE_VERSIONED_TRANSACTION,
+    CONFIG.SLIPPAGE
+  );
+
+  console.log(`Using priority fee: ${priorityFee} SOL`);
+  console.log(`Transaction signed with payer: ${raydiumSwap.wallet.publicKey.toBase58()}`);
+
+  console.log(`Swapping ${CONFIG.TOKEN_A_AMOUNT} SOL for BONK`);
+
+  if (CONFIG.EXECUTE_SWAP) {
+    try {
+      let txid: string;
+      if (CONFIG.USE_VERSIONED_TRANSACTION) {
+        if (!(swapTx instanceof VersionedTransaction)) {
+          throw new Error('Expected a VersionedTransaction but received a different type');
+        }
+        const latestBlockhash = await raydiumSwap.connection.getLatestBlockhash();
+        txid = await raydiumSwap.sendVersionedTransaction(
+          swapTx,
+          latestBlockhash.blockhash,
+          latestBlockhash.lastValidBlockHeight
+        );
+      } else {
+        if (!(swapTx instanceof Transaction)) {
+          throw new Error('Expected a Transaction but received a different type');
+        }
+        txid = await raydiumSwap.sendLegacyTransaction(swapTx);
+      }
+      console.log(`Transaction sent, signature: ${txid}`);
+      console.log(`Transaction executed: https://explorer.solana.com/tx/${txid}`);
+      
+      console.log('Transaction confirmed successfully');
+
+      // Fetch and display token balances
+      const solBalance = await raydiumSwap.connection.getBalance(raydiumSwap.wallet.publicKey) / LAMPORTS_PER_SOL;
+      const bonkBalance = await getTokenBalance(raydiumSwap, CONFIG.QUOTE_MINT);
+
+      console.log('\nToken Balances After Swap:');
+      console.log(`SOL: ${solBalance.toFixed(6)} SOL`);
+      console.log(`BONK: ${bonkBalance.toFixed(2)} BONK`);
+    } catch (error) {
+      console.error('Error executing transaction:', error);
+    }
+  } else {
+    console.log('Simulating transaction (dry run)');
+    try {
+      let simulationResult;
+      if (CONFIG.USE_VERSIONED_TRANSACTION) {
+        if (!(swapTx instanceof VersionedTransaction)) {
+          throw new Error('Expected a VersionedTransaction but received a different type');
+        }
+        simulationResult = await raydiumSwap.simulateVersionedTransaction(swapTx);
+      } else {
+        if (!(swapTx instanceof Transaction)) {
+          throw new Error('Expected a Transaction but received a different type');
+        }
+        simulationResult = await raydiumSwap.simulateLegacyTransaction(swapTx);
+      }
+      console.log('Simulation successful');
+      console.log('Simulated transaction details:');
+      console.log(`Logs:`, simulationResult.logs);
+      console.log(`Units consumed:`, simulationResult.unitsConsumed);
+      if (simulationResult.returnData) {
+        console.log(`Return data:`, simulationResult.returnData);
+      }
+    } catch (error) {
+      console.error('Error simulating transaction:', error);
+    }
+  }
+}
+
+
 dotenv.config();
 
 const app = express();
@@ -76,7 +192,7 @@ const platformWallet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(WALLET_P
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 const readOnlyProvider = new AnchorProvider(connection, new Wallet(platformWallet), {});
 const programId = new PublicKey(process.env.PROGRAM_ID as any);
-const program = new Program<AiAgent>(IDL, programId, readOnlyProvider);
+const program = new Program<AiAgent>(IDL, readOnlyProvider);
 
 const curveSeed = "CurveConfiguration"
 const POOL_SEED_PREFIX = "liquidity_pool"
@@ -588,9 +704,9 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
       uri: token?.metadataUri as string
     };
 
-    const metadataAccountAddress = findMetadataPda(umi, {
-      mint: publicKey(mintKeypair.publicKey.toBase58()),
-    });
+    // const metadataAccountAddress = findMetadataPda(umi, {
+    //   mint: publicKey(mintKeypair.publicKey.toBase58()),
+    // });
     
     // const INITIAL_LIQUIDITY_SOL =Math.floor(parseFloat("0.02") * 1e9); 
     const buyAmount = Math.floor(parseFloat(solAmount as string) * 1e9); 
@@ -644,7 +760,7 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
   //     mintKeypair.publicKey,
   //     platformWallet.publicKey,
   //     AuthorityType.MintTokens,
-  //     null
+  //     0
   // )
    
   // createMint(connection, platformWallet, platformWallet.publicKey, null, 9, mintKeypair)
@@ -688,47 +804,24 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
         await program.methods
           .createPool()
           .accounts({
-            pool: poolPda,
             tokenMint: mintKeypair.publicKey,
-            poolTokenAccount: poolTokenAccount,
-            payer: user,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-            systemProgram: SystemProgram.programId
+            payer: user
           })
           .instruction(),
         await program.methods
           .addLiquidity()
           .accounts({
-          pool: poolPda,
-          poolSolVault: poolSolVault,
           tokenMint: mintKeypair.publicKey,
-          poolTokenAccount: poolTokenAccount,
-          platformTokenAccount: platformTokenAccount,
           platformAuthority: platformWallet.publicKey,
-          user:user,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: SystemProgram.programId,
+          user:user
           })
           .instruction(),
           // mintAuthorityInstruction,
         await program.methods
           .buy(new BN(buyAmount.toString()))
-          .accounts({
-            pool: poolPda,
+          .accounts({ 
             tokenMint: mintKeypair.publicKey,
-            teamAccount: teamAccount,
-            poolSolVault,
-            poolTokenAccount: poolTokenAccount,
-            userTokenAccount: userTokenAccount,
-            dexConfigurationAccount: curveConfig,
-            user: user,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-            systemProgram: SystemProgram.programId,
+            user: user
           })
           .instruction()
       );
@@ -826,18 +919,8 @@ app.post('/api/:tokenMint/buy', async (req: Request, res: Response) => {
       await program.methods
         .buy(new BN(amountInLamports))
         .accounts({
-          pool: poolPda,
           tokenMint: mint,
-          teamAccount: teamAccount,
-          poolSolVault,
-          poolTokenAccount: poolTokenAccount,
-          userTokenAccount: userTokenAccount,
-          dexConfigurationAccount: curveConfig,
-          user: userPubkey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: SystemProgram.programId
+          user: userPubkey
         })
         .instruction()
     );
@@ -934,18 +1017,8 @@ app.post('/api/:tokenMint/sell', async (req: Request, res: Response) => {
         await program.methods
           .sell(tokenAmount, bump)
           .accounts({
-            pool: poolPda,
             tokenMint: mint,
-            teamAccount: teamAccount,
-            poolSolVault,
-            poolTokenAccount: poolTokenAccount,
-            userTokenAccount: userTokenAccount,
-            dexConfigurationAccount: curveConfig,
-            user: userPubkey,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-            systemProgram: SystemProgram.programId
+            user: userPubkey
           })
           .instruction()
       );
@@ -1194,15 +1267,15 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
       [Buffer.from(POOL_SEED_PREFIX), mint.toBuffer()],
       program.programId
     );
-
-    const [poolSolVault] = PublicKey.findProgramAddressSync(
-      [Buffer.from(SOL_VAULT_PREFIX), mint.toBuffer()],
-      program.programId
-    );
-
-    const poolTokenAccount = await getAssociatedTokenAddress(
-      mint, poolPda, true
-    );
+    console.log("poolPda", poolPda)
+    // const [poolSolVault] = PublicKey.findProgramAddressSync(
+    //   [Buffer.from(SOL_VAULT_PREFIX), mint.toBuffer()],
+    //   program.programId
+    // );
+    
+    // const poolTokenAccount = await getAssociatedTokenAddress(
+    //   mint, poolPda, true
+    // );
 
     const amountInLamports = Math.floor(parseFloat(amount as string) * 1e9);
 
@@ -1211,7 +1284,7 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
     
 
     const tokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
-    
+    console.log("tokenAccountInfo", tokenAccountInfo)
 
     if (!tokenAccountInfo) {
       tx.add(
@@ -1230,23 +1303,13 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
       await program.methods
         .buy(new BN(amountInLamports))
         .accounts({
-          pool: poolPda,
           tokenMint: mint,
-          teamAccount: teamAccount,
-          poolSolVault,
-          poolTokenAccount: poolTokenAccount,
-          userTokenAccount: userTokenAccount,
-          dexConfigurationAccount: curveConfig,
-          user: userPubkey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: SystemProgram.programId
+          user: userPubkey
         })
         .instruction()
     );
 
-
+    console.log("tx", tx)
     tx.feePayer = userPubkey;
     tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
@@ -1330,18 +1393,8 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
         await program.methods
           .sell(tokenAmount, bump)
           .accounts({
-            pool: poolPda,
             tokenMint: mint,
-            teamAccount: teamAccount,
-            poolSolVault,
-            poolTokenAccount: poolTokenAccount,
-            userTokenAccount: userTokenAccount,
-            dexConfigurationAccount: curveConfig,
-            user: userPubkey,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-            systemProgram: SystemProgram.programId
+            user: userPubkey
           })
           .instruction()
       );
@@ -1636,7 +1689,154 @@ app.get(`/health`, (req: Request, res: Response) => {
   res.send("ok");
 });
 
+app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
+  try {
+    const { tokenMint } = req.body;
+
+    if (!tokenMint) {
+       res.status(400).json({ error: 'Token mint address is required' });
+       return
+    }
+
+    console.log(`Starting Raydium migration for token: ${tokenMint}`);
+
+    const tokenMintPubkey = new PublicKey(tokenMint);
+    const wsolMintPubkey = NATIVE_MINT;
+    const walletPubkey = platformWallet.publicKey;
+    const ammConfigPubkey = new PublicKey("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
+
+    const [poolPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from(POOL_SEED_PREFIX), tokenMintPubkey.toBuffer()],
+      programId
+    );
+
+    const pool = await program.account.liquidityPool.fetch(poolPda);
+    if (pool.migratedToRaydium) {
+      res.status(400).json({ error: 'Pool already migrated to Raydium' });
+      return
+    }
+    if (pool.creator.toBase58() !== walletPubkey.toBase58()) {
+      res.status(403).json({ error: 'Only pool creator can migrate' });
+      return
+    }
+
+    // Step 1: Migrate to Raydium (transfer SOL and burn tokens)
+    const migrateIx = await program.methods
+      .migrateToRaydium()
+      .accounts({
+        tokenMint: tokenMintPubkey,
+        authority: walletPubkey,
+      })
+      .instruction();
+
+    // Calculate initial amounts based on SOL in the pool
+    const solAmount = new BN(pool.reserveSol.toString());
+    // The amount of tokens to use is calculated in the program
+    const tokenAmount = new BN(200_000_000 * Math.pow(10, 9)); // 200M tokens with 9 decimals
+
+    // Step 2: Initialize Raydium pool with the migrated funds
+    const cpSwapProgramId = new PublicKey('CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW');
+     
+    const [poolState] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('pool'),
+        ammConfigPubkey.toBuffer(),
+        wsolMintPubkey.toBuffer(),
+        tokenMintPubkey.toBuffer(),
+      ],
+      cpSwapProgramId
+    );
+     
+    const [lpMint] = PublicKey.findProgramAddressSync(
+      [Buffer.from('pool_lp_mint'), poolState.toBuffer()],
+      cpSwapProgramId
+    );
+     
+    const creatorLpToken = await getAssociatedTokenAddress(
+      lpMint,
+      platformWallet.publicKey,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    const initializeRaydiumPoolIx = await program.methods
+      .initializeRaydiumPool(solAmount, tokenAmount)
+      .accounts({
+        creator: walletPubkey,
+        tokenMint: tokenMintPubkey,
+        ammConfig: ammConfigPubkey,
+        creatorLpToken: creatorLpToken
+      })
+      .instruction();
+
+    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 });
+    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
+
+    const tx = new Transaction()
+      .add(modifyComputeUnits)
+      .add(priorityFee)
+      .add(migrateIx)
+      .add(initializeRaydiumPoolIx);
+
+    const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = walletPubkey;
+
+    const signers = [platformWallet];
+
+    try {
+      console.log("Sending migration transaction...");
+      const txid = await sendAndConfirmTransaction(
+        connection,
+        tx,
+        signers,
+        {
+          commitment: 'confirmed',
+          skipPreflight: true,
+        }
+      );
+
+      console.log(`Migration successful! Transaction ID: ${txid}`);
+
+      const updatedToken = await Token.findOneAndUpdate(
+        { mintAddress: tokenMint },
+        { 
+          migratedToRaydium: true,
+          raydiumPoolState: poolState.toBase58(),
+          raydiumLpMint: lpMint.toBase58()
+        },
+        { new: true }
+      );
+      console.log('Updated token record in DB:', updatedToken);
+
+      res.status(200).json({
+        success: true,
+        transactionId: txid,
+        raydiumPoolState: poolState.toBase58(),
+        raydiumLpMint: lpMint.toBase58()
+      });
+
+    } catch (error: any) {
+      console.error("Error sending migration transaction:", error);
+       res.status(500).json({ 
+        error: 'Migration Transaction failed',
+        details: error.message,
+        logs: error.logs 
+      });
+      return
+    }
+
+  } catch (error: any) {
+    console.error('Error in migrate-to-raydium setup:', error);
+       res.status(500).json({
+      error: 'Migration setup failed',
+      details: error.message,
+    });
+    return
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
