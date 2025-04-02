@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
-import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT} from "@solana/spl-token"
+import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {AiAgent, IDL } from './idl/ai_agent';
 import * as dotenv from 'dotenv';
@@ -1778,6 +1778,23 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
       .add(priorityFee)
       .add(migrateIx)
       .add(initializeRaydiumPoolIx);
+
+      const lpTokenAccount = await getAssociatedTokenAddress(
+        lpMint,
+        walletPubkey,
+        false
+      );
+  
+      // Create burn instruction for LP tokens
+      const burnLpTokensIx = createBurnInstruction(
+        lpTokenAccount,
+        lpMint,
+        walletPubkey,
+        pool.reserveSol.toNumber() // Amount to burn (all LP tokens)
+      );
+  
+      // Add to transaction
+      tx.add(burnLpTokensIx);
 
     const latestBlockhash = await connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = latestBlockhash.blockhash;

@@ -66,7 +66,6 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "raydium-cpmm-cpi",
- "raydium-locking-cpi",
 ]
 
 [[package]]
@@ -1168,32 +1167,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "raydium-clmm-cpi"
-version = "0.1.0"
-source = "git+https://github.com/raydium-io/raydium-cpi?branch=anchor-0.31.0#c8d1ed80932fb4c6f782c884bb9e5b4454384235"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
-]
-
-[[package]]
 name = "raydium-cpmm-cpi"
 version = "0.1.0"
 source = "git+https://github.com/raydium-io/raydium-cpi?branch=anchor-0.31.0#c8d1ed80932fb4c6f782c884bb9e5b4454384235"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
-]
-
-[[package]]
-name = "raydium-locking-cpi"
-version = "0.1.0"
-source = "git+https://github.com/raydium-io/raydium-cpi?branch=anchor-0.31.0#c8d1ed80932fb4c6f782c884bb9e5b4454384235"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "raydium-clmm-cpi",
- "raydium-cpmm-cpi",
 ]
 
 [[package]]

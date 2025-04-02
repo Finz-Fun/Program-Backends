@@ -6,8 +6,6 @@ pub mod buy;
 pub mod sell;
 pub mod migrate_to_raydium;
 pub mod raydium_init;
-pub mod lock_cpmm_lp;
-pub mod harvest_locked_fee;
 pub mod swap;
 
 pub use add_liquidity::*;
@@ -18,6 +16,4 @@ pub use buy::*;
 pub use sell::*;
 pub use migrate_to_raydium::*;
 pub use raydium_init::*;
-pub use lock_cpmm_lp::*;
-pub use harvest_locked_fee::*;
 pub use swap::*;

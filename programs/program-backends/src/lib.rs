@@ -56,14 +56,6 @@ pub mod ai_agent {
             init_amount_1,
         )
     }
-    
-    pub fn lock_cpmm_lp(ctx: Context<LockCpmmLiquidity>) -> Result<()> {
-        instructions::lock_cpmm_lp::LockCpmmLiquidity::lock_cpmm_cpi(ctx)
-    }
-
-    pub fn harvest_locked_fee(ctx: Context<HarvestLockedLiquidity>) -> Result<()> {
-        instructions::harvest_locked_fee::HarvestLockedLiquidity::harvest_cp_fees_cpi(ctx)
-    }   
 
     pub fn swap(ctx: Context<Swap>, amount_in: u64, minimum_amount_out: u64) -> Result<()> {
         instructions::swap::Swap::swap(ctx, amount_in, minimum_amount_out)
