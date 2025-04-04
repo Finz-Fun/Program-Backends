@@ -778,6 +778,9 @@ export type AiAgent = {
           "signer": true
         },
         {
+          "name": "admin"
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -792,6 +795,644 @@ export type AiAgent = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "harvestLockedLiquidity",
+      "discriminator": [
+        137,
+        155,
+        153,
+        39,
+        239,
+        216,
+        32,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "lockCpmmProgram",
+          "address": "DLockwT7X7sxtLmGH9g5kmfcjaBtncdbUmi738m5bvQC"
+        },
+        {
+          "name": "cpSwapProgram",
+          "address": "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ammConfig"
+        },
+        {
+          "name": "authority",
+          "address": "7AFUeLVRjBfzqK3tTGw8hN48KLQWSk6DTE8xprWdPqix"
+        },
+        {
+          "name": "feeNftAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "locked_liquidity.fee_nft_mint",
+                "account": "lockedCpLiquidityState"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "lockedLiquidity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  101,
+                  100,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "locked_liquidity.fee_nft_mint",
+                "account": "lockedCpLiquidityState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "lockCpmmProgram"
+            }
+          }
+        },
+        {
+          "name": "cpAuthority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  110,
+                  100,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  95,
+                  115,
+                  101,
+                  101,
+                  100
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "poolState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ammConfig"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lpMint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "baseVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "tokenVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token0Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "token1Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lockedLpVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lpMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "memoProgram",
+          "address": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+        },
+        {
+          "name": "token0Program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token1Program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "baseMint",
+          "writable": true,
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "tokenMint"
         }
       ],
       "args": []
@@ -1327,6 +1968,295 @@ export type AiAgent = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "lockCpmmLiquidity",
+      "discriminator": [
+        191,
+        106,
+        169,
+        116,
+        32,
+        148,
+        74,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "cpSwapProgram",
+          "address": "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW"
+        },
+        {
+          "name": "lockCpmmProgram",
+          "address": "DLockwT7X7sxtLmGH9g5kmfcjaBtncdbUmi738m5bvQC"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ammConfig"
+        },
+        {
+          "name": "authority",
+          "address": "7AFUeLVRjBfzqK3tTGw8hN48KLQWSk6DTE8xprWdPqix"
+        },
+        {
+          "name": "feeNftMint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "feeNftAcc",
+          "writable": true
+        },
+        {
+          "name": "poolState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ammConfig"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lockedLiquidity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  101,
+                  100,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "feeNftMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "lockCpmmProgram"
+            }
+          }
+        },
+        {
+          "name": "lpMint",
+          "docs": [
+            "The mint of liquidity token",
+            "address = pool_state.lp_mint"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "liquidityOwnerLp",
+          "writable": true
+        },
+        {
+          "name": "lockedLpVault",
+          "writable": true
+        },
+        {
+          "name": "token0Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "token1Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "feeNftMint"
+              },
+              {
+                "kind": "account",
+                "path": "metadataProgram"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "metadataProgram"
+            }
+          }
+        },
+        {
+          "name": "metadataProgram",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "baseMint",
+          "writable": true,
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "tokenMint"
+        }
+      ],
+      "args": []
     },
     {
       "name": "migrateToRaydium",
@@ -2473,6 +3403,19 @@ export type AiAgent = {
         68,
         129
       ]
+    },
+    {
+      "name": "lockedCpLiquidityState",
+      "discriminator": [
+        25,
+        10,
+        238,
+        197,
+        207,
+        234,
+        73,
+        22
+      ]
     }
   ],
   "errors": [
@@ -2716,11 +3659,101 @@ export type AiAgent = {
           }
         ]
       }
+    },
+    {
+      "name": "lockedCpLiquidityState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lockedLpAmount",
+            "docs": [
+              "The Locked liquidity amount without claimed lp fee"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimedLpAmount",
+            "docs": [
+              "Claimed lp fee amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unclaimedLpAmount",
+            "docs": [
+              "Unclaimed lp fee amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastLp",
+            "docs": [
+              "Last updated cp pool lp total supply"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastK",
+            "docs": [
+              "Last updated cp pool k"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "recentEpoch",
+            "docs": [
+              "Account update recent epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "poolId",
+            "docs": [
+              "The ID of the pool with which this record is connected"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "feeNftMint",
+            "docs": [
+              "nft mint to check who has authority to collect fee"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lockedOwner",
+            "docs": [
+              "The owner who has locked liquidity"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lockedLpMint",
+            "docs": [
+              "The mint of locked lp token"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "Unused bytes for future upgrades."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          }
+        ]
+      }
     }
   ]
 };
 
-export const IDL:AiAgent = {
+export const IDL: AiAgent ={
   "address": "DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa",
   "metadata": {
     "name": "aiAgent",
@@ -3494,6 +4527,9 @@ export const IDL:AiAgent = {
           "signer": true
         },
         {
+          "name": "admin"
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -3508,6 +4544,644 @@ export const IDL:AiAgent = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "harvestLockedLiquidity",
+      "discriminator": [
+        137,
+        155,
+        153,
+        39,
+        239,
+        216,
+        32,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "lockCpmmProgram",
+          "address": "DLockwT7X7sxtLmGH9g5kmfcjaBtncdbUmi738m5bvQC"
+        },
+        {
+          "name": "cpSwapProgram",
+          "address": "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ammConfig"
+        },
+        {
+          "name": "authority",
+          "address": "7AFUeLVRjBfzqK3tTGw8hN48KLQWSk6DTE8xprWdPqix"
+        },
+        {
+          "name": "feeNftAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "locked_liquidity.fee_nft_mint",
+                "account": "lockedCpLiquidityState"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "lockedLiquidity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  101,
+                  100,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "locked_liquidity.fee_nft_mint",
+                "account": "lockedCpLiquidityState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "lockCpmmProgram"
+            }
+          }
+        },
+        {
+          "name": "cpAuthority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  110,
+                  100,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  95,
+                  115,
+                  101,
+                  101,
+                  100
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "poolState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ammConfig"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lpMint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "baseVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "tokenVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token0Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "token1Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lockedLpVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lpMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "memoProgram",
+          "address": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+        },
+        {
+          "name": "token0Program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token1Program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "baseMint",
+          "writable": true,
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "tokenMint"
         }
       ],
       "args": []
@@ -4043,6 +5717,295 @@ export const IDL:AiAgent = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "lockCpmmLiquidity",
+      "discriminator": [
+        191,
+        106,
+        169,
+        116,
+        32,
+        148,
+        74,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "cpSwapProgram",
+          "address": "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW"
+        },
+        {
+          "name": "lockCpmmProgram",
+          "address": "DLockwT7X7sxtLmGH9g5kmfcjaBtncdbUmi738m5bvQC"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ammConfig"
+        },
+        {
+          "name": "authority",
+          "address": "7AFUeLVRjBfzqK3tTGw8hN48KLQWSk6DTE8xprWdPqix"
+        },
+        {
+          "name": "feeNftMint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "feeNftAcc",
+          "writable": true
+        },
+        {
+          "name": "poolState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ammConfig"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "lockedLiquidity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  101,
+                  100,
+                  95,
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "feeNftMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "lockCpmmProgram"
+            }
+          }
+        },
+        {
+          "name": "lpMint",
+          "docs": [
+            "The mint of liquidity token",
+            "address = pool_state.lp_mint"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "liquidityOwnerLp",
+          "writable": true
+        },
+        {
+          "name": "lockedLpVault",
+          "writable": true
+        },
+        {
+          "name": "token0Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "baseMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "token1Vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poolState"
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "cpSwapProgram"
+            }
+          }
+        },
+        {
+          "name": "metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "feeNftMint"
+              },
+              {
+                "kind": "account",
+                "path": "metadataProgram"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "metadataProgram"
+            }
+          }
+        },
+        {
+          "name": "metadataProgram",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "baseMint",
+          "writable": true,
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "tokenMint"
+        }
+      ],
+      "args": []
     },
     {
       "name": "migrateToRaydium",
@@ -5189,6 +7152,19 @@ export const IDL:AiAgent = {
         68,
         129
       ]
+    },
+    {
+      "name": "lockedCpLiquidityState",
+      "discriminator": [
+        25,
+        10,
+        238,
+        197,
+        207,
+        234,
+        73,
+        22
+      ]
     }
   ],
   "errors": [
@@ -5429,6 +7405,96 @@ export const IDL:AiAgent = {
           {
             "name": "migratedToRaydium",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lockedCpLiquidityState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lockedLpAmount",
+            "docs": [
+              "The Locked liquidity amount without claimed lp fee"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimedLpAmount",
+            "docs": [
+              "Claimed lp fee amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unclaimedLpAmount",
+            "docs": [
+              "Unclaimed lp fee amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastLp",
+            "docs": [
+              "Last updated cp pool lp total supply"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastK",
+            "docs": [
+              "Last updated cp pool k"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "recentEpoch",
+            "docs": [
+              "Account update recent epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "poolId",
+            "docs": [
+              "The ID of the pool with which this record is connected"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "feeNftMint",
+            "docs": [
+              "nft mint to check who has authority to collect fee"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lockedOwner",
+            "docs": [
+              "The owner who has locked liquidity"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "lockedLpMint",
+            "docs": [
+              "The mint of locked lp token"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "Unused bytes for future upgrades."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
           }
         ]
       }

@@ -7,6 +7,8 @@ pub mod sell;
 pub mod migrate_to_raydium;
 pub mod raydium_init;
 pub mod swap;
+pub mod lock_cpmm_lp;
+pub mod harvest_fee;
 
 pub use add_liquidity::*;
 pub use create_pool::*;
@@ -17,3 +19,5 @@ pub use sell::*;
 pub use migrate_to_raydium::*;
 pub use raydium_init::*;
 pub use swap::*;
+pub use lock_cpmm_lp::*;
+pub use harvest_fee::*;

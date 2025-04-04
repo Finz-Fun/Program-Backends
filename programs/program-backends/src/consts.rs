@@ -6,4 +6,4 @@ pub const PROPORTION: u64 = 1280;
 // Define the fixed amount of tokens to be provided by the platform wallet (200 Million)
 pub const PLATFORM_TOKEN_AMOUNT: u64 = 200_000_000;
 pub const WSOL_ID: Pubkey = solana_program::pubkey!("So11111111111111111111111111111111111111112");
-pub const LOCK_CPMM_AUTHORITY: Pubkey = solana_program::pubkey!("3f7GcQFG397GAaEnv51zR6tsTVihYRydnydDD1cXekxH");
+pub const LOCK_CPMM_AUTHORITY: Pubkey = solana_program::pubkey!("7AFUeLVRjBfzqK3tTGw8hN48KLQWSk6DTE8xprWdPqix");

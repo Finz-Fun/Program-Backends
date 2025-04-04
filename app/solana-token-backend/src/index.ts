@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
-import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction} from "@solana/spl-token"
+import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction, getAssociatedTokenAddressSync} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {AiAgent, IDL } from './idl/ai_agent';
 import * as dotenv from 'dotenv';
@@ -36,6 +36,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { createTransferInstruction } from '@solana/spl-token';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 async function getTokenBalance(raydiumSwap: RaydiumSwap, mint: string): Promise<number> {
   const userTokenAccounts = await raydiumSwap.getOwnerTokenAccounts();
@@ -625,7 +626,7 @@ app.post("/create-token", async (req, res) => {
       imageUrl: imageUrl,
       tweetId: tweetData.tweetId,
       mintAddress: mintKeypair.publicKey.toBase58(),
-      secretKey: Buffer.from(mintKeypair.secretKey).toString('base64')
+      secretKey: bs58.encode(mintKeypair.secretKey)
     })
 
     // await mintTo(
@@ -649,7 +650,7 @@ app.post("/create-token", async (req, res) => {
 
     res.json({
       success: true,
-      secretKey: Buffer.from(mintKeypair.secretKey).toString('base64'),
+      secretKey: bs58.encode(mintKeypair.secretKey),
       tokenMint: mintKeypair.publicKey.toBase58(),
       name: tokenName,
       symbol,
@@ -805,7 +806,8 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
           .createPool()
           .accounts({
             tokenMint: mintKeypair.publicKey,
-            payer: user
+            payer: user,
+            admin: platformWallet.publicKey
           })
           .instruction(),
         await program.methods
@@ -1705,16 +1707,31 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
     const walletPubkey = platformWallet.publicKey;
     const ammConfigPubkey = new PublicKey("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
 
+    const token = await Token.findOne({mintAddress: tokenMint});
+
+    if (!token) {
+      res.status(404).json({ error: 'Token not found' });
+      return
+    }
+
+    const secretKey = bs58.decode(token.secretKey as string);
+    const mintKeypair = Keypair.fromSecretKey(secretKey);
+
+    console.log(mintKeypair.publicKey.toBase58())
+
+
     const [poolPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(POOL_SEED_PREFIX), tokenMintPubkey.toBuffer()],
       programId
     );
 
     const pool = await program.account.liquidityPool.fetch(poolPda);
+    console.log(pool)
     if (pool.migratedToRaydium) {
       res.status(400).json({ error: 'Pool already migrated to Raydium' });
       return
     }
+
     if (pool.creator.toBase58() !== walletPubkey.toBase58()) {
       res.status(403).json({ error: 'Only pool creator can migrate' });
       return
@@ -1732,7 +1749,11 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
     // Calculate initial amounts based on SOL in the pool
     const solAmount = new BN(pool.reserveSol.toString());
     // The amount of tokens to use is calculated in the program
-    const tokenAmount = new BN(200_000_000 * Math.pow(10, 9)); // 200M tokens with 9 decimals
+    const tokenBase = new BN(200_000_000);
+    const decimalMultiplier = new BN(10).pow(new BN(9));
+    const tokenAmount = tokenBase.mul(decimalMultiplier);
+
+
 
     // Step 2: Initialize Raydium pool with the migrated funds
     const cpSwapProgramId = new PublicKey('CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW');
@@ -1773,6 +1794,24 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
     const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 });
     const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
 
+    const creatorBaseAta = await getOrCreateAssociatedTokenAccount(
+      connection,
+      platformWallet,
+      NATIVE_MINT,
+      walletPubkey
+    );
+
+    const wsolBalance = await connection.getTokenAccountBalance(creatorBaseAta.address);
+console.log(`wSOL balance: ${wsolBalance.value.uiAmount}`);
+console.log(`Required SOL amount: ${Number(pool.reserveSol.toString()) / 1e9}`);
+
+    const creatorTokenAta = await getOrCreateAssociatedTokenAccount(
+      connection,
+      platformWallet,
+      tokenMintPubkey,
+      walletPubkey
+    );
+
     const tx = new Transaction()
       .add(modifyComputeUnits)
       .add(priorityFee)
@@ -1784,30 +1823,41 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
         walletPubkey,
         false
       );
+     const LOCK_CPMM_AUTHORITY_ID = new PublicKey('3f7GcQFG397GAaEnv51zR6tsTVihYRydnydDD1cXekxH');
+     const  locked_lp_vault = getAssociatedTokenAddressSync(lpMint, LOCK_CPMM_AUTHORITY_ID, true);
+    // After the Raydium pool initialization, lock the LP tokens instead of burning them
+    const feeNftMint = new Keypair();
+    const lockLpTokensIx = await program.methods
+      .lockCpmmLiquidity()
+      .accounts({
+        creator: walletPubkey,
+        ammConfig: ammConfigPubkey,
+        feeNftMint: feeNftMint.publicKey, // Generate a new fee NFT mint
+        feeNftAcc: await getAssociatedTokenAddress(
+          feeNftMint.publicKey, // Same fee NFT mint
+          walletPubkey
+        ),
+        tokenMint: tokenMintPubkey,
+        liquidityOwnerLp: lpTokenAccount,
+        lockedLpVault: locked_lp_vault
+      })
+      .instruction();
   
-      // Create burn instruction for LP tokens
-      const burnLpTokensIx = createBurnInstruction(
-        lpTokenAccount,
-        lpMint,
-        walletPubkey,
-        pool.reserveSol.toNumber() // Amount to burn (all LP tokens)
-      );
-  
-      // Add to transaction
-      tx.add(burnLpTokensIx);
+    // Add to transaction instead of burning
+
 
     const latestBlockhash = await connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = walletPubkey;
 
-    const signers = [platformWallet];
+    const signers = [platformWallet, mintKeypair, feeNftMint];
 
     try {
       console.log("Sending migration transaction...");
       const txid = await sendAndConfirmTransaction(
         connection,
         tx,
-        signers,
+        [platformWallet,mintKeypair],
         {
           commitment: 'confirmed',
           skipPreflight: true,
@@ -1815,6 +1865,19 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
       );
 
       console.log(`Migration successful! Transaction ID: ${txid}`);
+
+      const tx2 = new Transaction()
+      .add(lockLpTokensIx);
+
+      const txid2 = await sendAndConfirmTransaction(
+        connection,
+        tx2,
+        signers,
+        { commitment: 'confirmed', skipPreflight: true }
+      );
+
+      console.log(`Lock liquidity successful! Transaction ID: ${txid2}`);
+      
 
       const updatedToken = await Token.findOneAndUpdate(
         { mintAddress: tokenMint },
@@ -1851,6 +1914,76 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
       details: error.message,
     });
     return
+  }
+});
+
+app.post('/api/harvest-raydium-fees', async (req: Request, res: Response) => {
+  try {
+    const { tokenMint, feeNftMint } = req.body;
+
+    if (!tokenMint || !feeNftMint) {
+      res.status(400).json({ error: 'Token mint and Fee NFT mint addresses are required' });
+      return
+    }
+
+    console.log(`Starting fee harvesting for token: ${tokenMint}`);
+
+    const tokenMintPubkey = new PublicKey(tokenMint);
+    const walletPubkey = platformWallet.publicKey;
+    const ammConfigPubkey = new PublicKey("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
+
+    // Get necessary accounts
+    const token = await Token.findOne({ mintAddress: tokenMint });
+    if (!token || !token.raydiumPoolState) {
+      res.status(404).json({ error: 'Token or Raydium pool not found' });
+      return
+    }
+
+    // Create harvest fees instruction
+    const harvestFeesIx = await program.methods
+      .harvestLockedLiquidity()
+      .accounts({
+        creator: walletPubkey,
+        tokenMint: tokenMintPubkey,
+        ammConfig: ammConfigPubkey
+      })
+      .instruction();
+
+    const tx = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }))
+      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }))
+      .add(harvestFeesIx);
+
+    const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = walletPubkey;
+
+    const signers = [platformWallet];
+
+    console.log("Sending harvest fees transaction...");
+    const txid = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      signers,
+      {
+        commitment: 'confirmed',
+        skipPreflight: true,
+      }
+    );
+
+    console.log(`Fee harvesting successful! Transaction ID: ${txid}`);
+
+    res.status(200).json({
+      success: true,
+      transactionId: txid
+    });
+
+  } catch (error: any) {
+    console.error('Error harvesting fees:', error);
+    res.status(500).json({
+      error: 'Fee harvesting failed',
+      details: error.message,
+    });
   }
 });
 

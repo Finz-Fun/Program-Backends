@@ -9,7 +9,7 @@ pub fn create_pool(ctx: Context<CreateLiquidityPool>) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
 
     pool.set_inner(LiquidityPool::new(
-        ctx.accounts.payer.key(),
+        ctx.accounts.admin.key(),
         ctx.accounts.token_mint.key(),
         ctx.bumps.pool,
     ));
@@ -40,6 +40,10 @@ pub struct CreateLiquidityPool<'info> {
 
     #[account(mut)]
     pub payer: Signer<'info>,
+
+    /// CHECK:  will be checked by the constraints
+    pub admin: UncheckedAccount<'info>,
+
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub rent: Sysvar<'info, Rent>,

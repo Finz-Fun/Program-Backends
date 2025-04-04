@@ -45,6 +45,17 @@ const tokenSchema = new mongoose.Schema({
   liquidity: {
     type: Boolean,
     default: false
+  },
+  migratedToRaydium: {
+    type: Boolean,
+    default: false
+  },
+  raydiumPoolState: {
+    type: String,
+  },
+  raydiumLpMint: {
+    type: String,
+    default: null
   }
 });
 

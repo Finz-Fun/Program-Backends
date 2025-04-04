@@ -18,10 +18,7 @@ pub struct CreateCpmmPool<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
     #[account(
-        init,
-        payer = creator,
-        mint::decimals = 9,
-        mint::authority = creator,
+        mut,
         mint::token_program = token_program,
     )]
     pub token_mint: Box<InterfaceAccount<'info, Mint>>,
@@ -39,8 +36,7 @@ pub struct CreateCpmmPool<'info> {
     )]
     pub creator_base_ata: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
-        init,
-        payer = creator,
+        mut,
         associated_token::mint = token_mint,
         associated_token::authority = creator
     )]

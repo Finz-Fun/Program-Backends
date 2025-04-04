@@ -106,20 +106,20 @@ pub fn migrate_to_raydium(
     msg!("SOL wrapped into WSOL successfully");
 
     // --- STEP 3: Burn tokens from the authority's token account ---
-    msg!("Burning {} tokens from the authority's token account", token_amount);
-    spl_token_interface::burn(
-        CpiContext::new(
-            token_program.to_account_info(),
-            spl_token_interface::Burn {
-                mint: token_mint_account.to_account_info(),
-                from: ctx.accounts.authority_token_account.to_account_info(),
-                authority: authority.to_account_info(),
-            },
-        ),
-        token_amount,
-    )?;
+    // msg!("Burning {} tokens from the authority's token account", token_amount);
+    // spl_token_interface::burn(
+    //     CpiContext::new(
+    //         token_program.to_account_info(),
+    //         spl_token_interface::Burn {
+    //             mint: token_mint_account.to_account_info(),
+    //             from: ctx.accounts.authority_token_account.to_account_info(),
+    //             authority: authority.to_account_info(),
+    //         },
+    //     ),
+    //     token_amount,
+    // )?;
     
-    msg!("Tokens burned successfully");
+    // msg!("Tokens burned successfully");
 
     // --- STEP 4: Mark the pool as migrated ---
     pool.migrated_to_raydium = true;
