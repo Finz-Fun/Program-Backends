@@ -48,7 +48,7 @@ pub struct LiquidityPool {
     pub reserve_token: u64,
     pub reserve_sol: u64,
     pub bump: u8,
-    pub migrated_to_raydium: bool, // Tracks migration status
+    pub migrated_to_meteora: bool, // Tracks migration status
 }
 
 impl LiquidityPool {
@@ -68,7 +68,7 @@ impl LiquidityPool {
             reserve_token: 0_u64,
             reserve_sol: 0_u64,
             bump,
-            migrated_to_raydium: false,
+            migrated_to_meteora: false,
         }
     }
 }
@@ -198,7 +198,7 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.transfer_token_to_pool(
             token_accounts.2,
             token_accounts.1,
-            token_accounts.0.supply,
+            800_000_000_000_000_000 as u64,
             platform_authority,
             token_program,
         )?;

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
-import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction, getAssociatedTokenAddressSync} from "@solana/spl-token"
+import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction, getAssociatedTokenAddressSync, createCloseAccountInstruction} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {AiAgent, IDL } from './idl/ai_agent';
 import * as dotenv from 'dotenv';
@@ -29,120 +29,16 @@ import Walletmodel from './models/walletSchema';
 import Mentions from './models/mentionsSchema';
 import { Transaction as TransactionModel } from './models/transactionSchema';
 import { createClient } from 'redis';
-import { RaydiumSwap } from './raydium-swap';
-import { CONFIG } from './raydium.config';
 import { 
   LAMPORTS_PER_SOL,
   VersionedTransaction,
 } from '@solana/web3.js';
 import { createTransferInstruction } from '@solana/spl-token';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-
-async function getTokenBalance(raydiumSwap: RaydiumSwap, mint: string): Promise<number> {
-  const userTokenAccounts = await raydiumSwap.getOwnerTokenAccounts();
-  const tokenAccount = userTokenAccounts.find(account => 
-    account.accountInfo.mint.equals(new PublicKey(mint))
-  );
-  if (tokenAccount) {
-    const balance = await raydiumSwap.connection.getTokenAccountBalance(tokenAccount.pubkey);
-    return balance.value.uiAmount || 0;
-  }
-  return 0;
-}
-
-async function swap() {
-  console.log('Starting swap process...');
-  const raydiumSwap = new RaydiumSwap(CONFIG.RPC_URL as string, CONFIG.WALLET_SECRET_KEY as string);
-
-  await raydiumSwap.loadPoolKeys();
-  let poolInfo = raydiumSwap.findPoolInfoForTokens(CONFIG.BASE_MINT, CONFIG.QUOTE_MINT) 
-    || await raydiumSwap.findRaydiumPoolInfo(CONFIG.BASE_MINT, CONFIG.QUOTE_MINT);
-
-  if (!poolInfo) {
-    throw new Error("Couldn't find the pool info");
-  }
-
-  await raydiumSwap.createWrappedSolAccountInstruction(CONFIG.TOKEN_A_AMOUNT);
-
-  console.log('Fetching current priority fee...');
-  const priorityFee = await CONFIG.getPriorityFee();
-  console.log(`Current priority fee: ${priorityFee} SOL`);
-
-  console.log('Creating swap transaction...');
-  const swapTx = await raydiumSwap.getSwapTransaction(
-    CONFIG.QUOTE_MINT,
-    CONFIG.TOKEN_A_AMOUNT,
-    poolInfo,
-    CONFIG.USE_VERSIONED_TRANSACTION,
-    CONFIG.SLIPPAGE
-  );
-
-  console.log(`Using priority fee: ${priorityFee} SOL`);
-  console.log(`Transaction signed with payer: ${raydiumSwap.wallet.publicKey.toBase58()}`);
-
-  console.log(`Swapping ${CONFIG.TOKEN_A_AMOUNT} SOL for BONK`);
-
-  if (CONFIG.EXECUTE_SWAP) {
-    try {
-      let txid: string;
-      if (CONFIG.USE_VERSIONED_TRANSACTION) {
-        if (!(swapTx instanceof VersionedTransaction)) {
-          throw new Error('Expected a VersionedTransaction but received a different type');
-        }
-        const latestBlockhash = await raydiumSwap.connection.getLatestBlockhash();
-        txid = await raydiumSwap.sendVersionedTransaction(
-          swapTx,
-          latestBlockhash.blockhash,
-          latestBlockhash.lastValidBlockHeight
-        );
-      } else {
-        if (!(swapTx instanceof Transaction)) {
-          throw new Error('Expected a Transaction but received a different type');
-        }
-        txid = await raydiumSwap.sendLegacyTransaction(swapTx);
-      }
-      console.log(`Transaction sent, signature: ${txid}`);
-      console.log(`Transaction executed: https://explorer.solana.com/tx/${txid}`);
-      
-      console.log('Transaction confirmed successfully');
-
-      // Fetch and display token balances
-      const solBalance = await raydiumSwap.connection.getBalance(raydiumSwap.wallet.publicKey) / LAMPORTS_PER_SOL;
-      const bonkBalance = await getTokenBalance(raydiumSwap, CONFIG.QUOTE_MINT);
-
-      console.log('\nToken Balances After Swap:');
-      console.log(`SOL: ${solBalance.toFixed(6)} SOL`);
-      console.log(`BONK: ${bonkBalance.toFixed(2)} BONK`);
-    } catch (error) {
-      console.error('Error executing transaction:', error);
-    }
-  } else {
-    console.log('Simulating transaction (dry run)');
-    try {
-      let simulationResult;
-      if (CONFIG.USE_VERSIONED_TRANSACTION) {
-        if (!(swapTx instanceof VersionedTransaction)) {
-          throw new Error('Expected a VersionedTransaction but received a different type');
-        }
-        simulationResult = await raydiumSwap.simulateVersionedTransaction(swapTx);
-      } else {
-        if (!(swapTx instanceof Transaction)) {
-          throw new Error('Expected a Transaction but received a different type');
-        }
-        simulationResult = await raydiumSwap.simulateLegacyTransaction(swapTx);
-      }
-      console.log('Simulation successful');
-      console.log('Simulated transaction details:');
-      console.log(`Logs:`, simulationResult.logs);
-      console.log(`Units consumed:`, simulationResult.unitsConsumed);
-      if (simulationResult.returnData) {
-        console.log(`Return data:`, simulationResult.returnData);
-      }
-    } catch (error) {
-      console.error('Error simulating transaction:', error);
-    }
-  }
-}
+// @ts-ignore
+import AmmImpl, { PROGRAM_ID, } from '@mercurial-finance/dynamic-amm-sdk';
+import { derivePoolAddressWithConfig } from '@mercurial-finance/dynamic-amm-sdk/dist/cjs/src/amm/utils';
+// import { derivePoolAddressWithConfig } from '@meteora-ag/dynamic-amm-sdk/dist/cjs/src/amm/utils';
 
 
 dotenv.config();
@@ -202,14 +98,139 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const [curveConfig] = PublicKey.findProgramAddressSync(
-  [Buffer.from(curveSeed)],
-  program.programId
-)
 
-const teamAccount = new PublicKey("6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP")
+type AllocationByPercentage = {
+  address: PublicKey;
+  percentage: number;
+};
+
+type AllocationByAmount = {
+  address: PublicKey;
+  amount: BN;
+};
+
+async function unwrapSol(
+  connection: Connection,
+  wallet: Keypair,
+  tokenAccount: PublicKey
+): Promise<void> {
+  const unwrapTransaction = new Transaction().add(
+      createCloseAccountInstruction(
+          tokenAccount,
+          wallet.publicKey,
+          wallet.publicKey
+      )
+  );
+  await sendAndConfirmTransaction(connection, unwrapTransaction, [wallet]);
+  console.log("✅ - Step 4: SOL unwrapped");
+}
+
+function fromAllocationsToAmount(lpAmount: BN, allocations: AllocationByPercentage[]): AllocationByAmount[] {
+  const sumPercentage = allocations.reduce((partialSum, a) => partialSum + a.percentage, 0);
+  if (sumPercentage === 0) {
+    throw Error('sumPercentage is zero');
+  }
+
+  let amounts: AllocationByAmount[] = [];
+  let sum = new BN(0);
+  for (let i = 0; i < allocations.length - 1; i++) {
+    const amount = lpAmount.mul(new BN(allocations[i].percentage)).div(new BN(sumPercentage));
+    sum = sum.add(amount);
+    amounts.push({
+      address: allocations[i].address,
+      amount,
+    });
+  }
+  // the last wallet get remaining amount
+  amounts.push({
+    address: allocations[allocations.length - 1].address,
+    amount: lpAmount.sub(sum),
+  });
+  return amounts;
+}
+
+async function getClaimableFee(poolAddress: PublicKey, owner: PublicKey) {
+  const pool = await AmmImpl.create(readOnlyProvider.connection, poolAddress);
+  let result = await pool.getUserLockEscrow(owner);
+  console.log('unClaimed: %s', result?.fee.unClaimed.lp?.toString());
+  console.log(result)
+}
+
+async function getMeteoraPoolInfo(poolAddress: PublicKey) {
+  const pool = await AmmImpl.create(readOnlyProvider.connection, poolAddress);
+  const poolInfo = pool.poolInfo;
+
+  console.log('Pool Address: %s', poolAddress.toString());
+  const poolTokenAddress = await pool.getPoolTokenMint();
+  console.log('Pool LP Token Mint Address: %s', poolTokenAddress.toString());
+  const LockedLpAmount = await pool.getLockedLpAmount();
+  console.log('Locked Lp Amount: %s', LockedLpAmount.toNumber());
+  const lpSupply = await pool.getLpSupply();
+  console.log('Pool LP Supply: %s \n', lpSupply.toNumber() / Math.pow(10, pool.decimals));
+
+  console.log(
+    'tokenA %s Amount: %s ',
+    pool.tokenAMint.address,
+    poolInfo.tokenAAmount.toNumber() / Math.pow(10, pool.tokenAMint.decimals),
+  );
+  console.log(
+    'tokenB %s Amount: %s',
+    pool.tokenBMint.address,
+    poolInfo.tokenBAmount.toNumber() / Math.pow(10, pool.tokenBMint.decimals),
+  );
+  console.log('virtualPrice: %s', poolInfo.virtualPrice);
+  console.log('virtualPriceRaw to String: %s \n', poolInfo.virtualPriceRaw.toString());
+}
 
 
+async function createPoolAndLockLiquidity(
+  tokenAMint: PublicKey,
+  tokenBMint: PublicKey,
+  tokenAAmount: BN,
+  tokenBAmount: BN,
+  config: PublicKey,
+  allocations: AllocationByPercentage[],
+) {
+  let txHashArray = [];
+  const programID = new PublicKey(PROGRAM_ID);
+  const poolPubkey = derivePoolAddressWithConfig(tokenAMint, tokenBMint, config, programID);
+  // Create the pool
+  console.log('create pool %s', poolPubkey);
+  let transactions = await AmmImpl.createPermissionlessConstantProductPoolWithConfig(
+    readOnlyProvider.connection,
+    platformWallet.publicKey,
+    tokenAMint,
+    tokenBMint,
+    tokenAAmount,
+    tokenBAmount,
+    config,
+  );
+  for (const transaction of transactions) {
+    transaction.sign(platformWallet);
+    const txHash = await readOnlyProvider.connection.sendRawTransaction(transaction.serialize());
+    await readOnlyProvider.connection.confirmTransaction(txHash, 'finalized');
+    console.log('transaction %s', txHash);
+  }
+
+  // Create escrow and lock liquidity
+  const [lpMint] = PublicKey.findProgramAddressSync([Buffer.from("lp_mint"), poolPubkey.toBuffer()], programID);
+  const payerPoolLp = await getAssociatedTokenAddress(lpMint, platformWallet.publicKey);
+  const payerPoolLpBalance = (await readOnlyProvider.connection.getTokenAccountBalance(payerPoolLp)).value.amount;
+  console.log('payerPoolLpBalance %s', payerPoolLpBalance.toString());
+
+  let allocationByAmounts = fromAllocationsToAmount(new BN(payerPoolLpBalance), allocations);
+  const pool = await AmmImpl.create(readOnlyProvider.connection, poolPubkey);
+  for (const allocation of allocationByAmounts) {
+    console.log('Lock liquidity %s', allocation.address.toString());
+    let transaction = await pool.lockLiquidity(allocation.address, allocation.amount, platformWallet.publicKey);
+    transaction.sign(platformWallet);
+    const txHash = await readOnlyProvider.connection.sendRawTransaction(transaction.serialize());
+    await readOnlyProvider.connection.confirmTransaction(txHash, 'finalized');
+    console.log('transaction %s', txHash);
+    txHashArray.push(txHash);
+  }
+  return txHashArray;
+}
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION!,
@@ -279,6 +300,53 @@ interface TweetData {
   ca: string;
   tweetImage?: string | null;
   avatarUrl?: string;
+}
+
+
+async function checkBalances(tokenMintPubkey: PublicKey) {
+  // Check SOL balance
+  const solBalance = await connection.getBalance(platformWallet.publicKey);
+  console.log(`SOL Balance: ${solBalance / LAMPORTS_PER_SOL}`);
+  
+  // Check WSOL balance
+  const wsolAta = await getOrCreateAssociatedTokenAccount(
+    connection, 
+    platformWallet, 
+    NATIVE_MINT, 
+    platformWallet.publicKey
+  );
+  let wsolBalance = 0;
+  try {
+    const wsolBalanceInfo = await connection.getTokenAccountBalance(wsolAta.address);
+    wsolBalance = Number(wsolBalanceInfo.value.amount) / 10**9;
+    console.log(`WSOL Balance: ${wsolBalance}`);
+  } catch (e) {
+    console.log("WSOL account may not exist yet or has no balance");
+  }
+  
+  // Check token balance
+  const tokenAta = await getOrCreateAssociatedTokenAccount(
+    connection, 
+    platformWallet, 
+    tokenMintPubkey, 
+    platformWallet.publicKey
+  );
+  let tokenBalance = 0;
+  try {
+    const tokenBalanceInfo = await connection.getTokenAccountBalance(tokenAta.address);
+    tokenBalance = Number(tokenBalanceInfo.value.amount) / 10**9;
+    console.log(`Token Balance: ${tokenBalance}`);
+  } catch (e) {
+    console.log("Token account may not exist yet or has no balance");
+  }
+  
+  return { 
+    solBalance: solBalance / LAMPORTS_PER_SOL, 
+    wsolBalance, 
+    tokenBalance, 
+    wsolAta, 
+    tokenAta 
+  };
 }
 
 async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
@@ -626,7 +694,7 @@ app.post("/create-token", async (req, res) => {
       imageUrl: imageUrl,
       tweetId: tweetData.tweetId,
       mintAddress: mintKeypair.publicKey.toBase58(),
-      secretKey: bs58.encode(mintKeypair.secretKey)
+      secretKey: Buffer.from(mintKeypair.secretKey).toString('base64')
     })
 
     // await mintTo(
@@ -650,7 +718,7 @@ app.post("/create-token", async (req, res) => {
 
     res.json({
       success: true,
-      secretKey: bs58.encode(mintKeypair.secretKey),
+      secretKey: Buffer.from(mintKeypair.secretKey).toString('base64'),
       tokenMint: mintKeypair.publicKey.toBase58(),
       name: tokenName,
       symbol,
@@ -1691,7 +1759,7 @@ app.get(`/health`, (req: Request, res: Response) => {
   res.send("ok");
 });
 
-app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
+app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.body;
 
@@ -1705,7 +1773,6 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
     const tokenMintPubkey = new PublicKey(tokenMint);
     const wsolMintPubkey = NATIVE_MINT;
     const walletPubkey = platformWallet.publicKey;
-    const ammConfigPubkey = new PublicKey("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
 
     const token = await Token.findOne({mintAddress: tokenMint});
 
@@ -1714,7 +1781,10 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
       return
     }
 
-    const secretKey = bs58.decode(token.secretKey as string);
+    // const secretKey = bs58.decode(token.secretKey as string);
+    const secretKey = Uint8Array.from(
+      Buffer.from(token.secretKey as string, 'base64')
+    );
     const mintKeypair = Keypair.fromSecretKey(secretKey);
 
     console.log(mintKeypair.publicKey.toBase58())
@@ -1727,7 +1797,7 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
 
     const pool = await program.account.liquidityPool.fetch(poolPda);
     console.log(pool)
-    if (pool.migratedToRaydium) {
+    if (pool.migratedToMeteora) {
       res.status(400).json({ error: 'Pool already migrated to Raydium' });
       return
     }
@@ -1736,10 +1806,10 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
       res.status(403).json({ error: 'Only pool creator can migrate' });
       return
     }
-
+    const baseAta = await getOrCreateAssociatedTokenAccount(connection, platformWallet, NATIVE_MINT, walletPubkey);
     // Step 1: Migrate to Raydium (transfer SOL and burn tokens)
     const migrateIx = await program.methods
-      .migrateToRaydium()
+      .migrateToMeteora()
       .accounts({
         tokenMint: tokenMintPubkey,
         authority: walletPubkey,
@@ -1753,111 +1823,26 @@ app.post('/api/migrate-to-raydium', async (req: Request, res: Response) => {
     const decimalMultiplier = new BN(10).pow(new BN(9));
     const tokenAmount = tokenBase.mul(decimalMultiplier);
 
-
-
-    // Step 2: Initialize Raydium pool with the migrated funds
-    const cpSwapProgramId = new PublicKey('CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW');
-     
-    const [poolState] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('pool'),
-        ammConfigPubkey.toBuffer(),
-        wsolMintPubkey.toBuffer(),
-        tokenMintPubkey.toBuffer(),
-      ],
-      cpSwapProgramId
-    );
-     
-    const [lpMint] = PublicKey.findProgramAddressSync(
-      [Buffer.from('pool_lp_mint'), poolState.toBuffer()],
-      cpSwapProgramId
-    );
-     
-    const creatorLpToken = await getAssociatedTokenAddress(
-      lpMint,
-      platformWallet.publicKey,
-      false,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-
-    const initializeRaydiumPoolIx = await program.methods
-      .initializeRaydiumPool(solAmount, tokenAmount)
-      .accounts({
-        creator: walletPubkey,
-        tokenMint: tokenMintPubkey,
-        ammConfig: ammConfigPubkey,
-        creatorLpToken: creatorLpToken
-      })
-      .instruction();
-
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 });
-    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
-
-    const creatorBaseAta = await getOrCreateAssociatedTokenAccount(
-      connection,
-      platformWallet,
-      NATIVE_MINT,
-      walletPubkey
-    );
-
-    const wsolBalance = await connection.getTokenAccountBalance(creatorBaseAta.address);
-console.log(`wSOL balance: ${wsolBalance.value.uiAmount}`);
-console.log(`Required SOL amount: ${Number(pool.reserveSol.toString()) / 1e9}`);
-
-    const creatorTokenAta = await getOrCreateAssociatedTokenAccount(
-      connection,
-      platformWallet,
-      tokenMintPubkey,
-      walletPubkey
-    );
+    const config = new PublicKey("BdfD7rrTZEWmf8UbEBPVpvM3wUqyrR8swjAy5SNT8gJ2");
 
     const tx = new Transaction()
-      .add(modifyComputeUnits)
-      .add(priorityFee)
-      .add(migrateIx)
-      .add(initializeRaydiumPoolIx);
-
-      const lpTokenAccount = await getAssociatedTokenAddress(
-        lpMint,
-        walletPubkey,
-        false
-      );
-     const LOCK_CPMM_AUTHORITY_ID = new PublicKey('3f7GcQFG397GAaEnv51zR6tsTVihYRydnydDD1cXekxH');
-     const  locked_lp_vault = getAssociatedTokenAddressSync(lpMint, LOCK_CPMM_AUTHORITY_ID, true);
-    // After the Raydium pool initialization, lock the LP tokens instead of burning them
-    const feeNftMint = new Keypair();
-    const lockLpTokensIx = await program.methods
-      .lockCpmmLiquidity()
-      .accounts({
-        creator: walletPubkey,
-        ammConfig: ammConfigPubkey,
-        feeNftMint: feeNftMint.publicKey, // Generate a new fee NFT mint
-        feeNftAcc: await getAssociatedTokenAddress(
-          feeNftMint.publicKey, // Same fee NFT mint
-          walletPubkey
-        ),
-        tokenMint: tokenMintPubkey,
-        liquidityOwnerLp: lpTokenAccount,
-        lockedLpVault: locked_lp_vault
-      })
-      .instruction();
-  
-    // Add to transaction instead of burning
-
+    .add(migrateIx);
 
     const latestBlockhash = await connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = walletPubkey;
 
-    const signers = [platformWallet, mintKeypair, feeNftMint];
+    
+
+    // Then use it before pool creation
+    
 
     try {
       console.log("Sending migration transaction...");
       const txid = await sendAndConfirmTransaction(
         connection,
         tx,
-        [platformWallet,mintKeypair],
+        [platformWallet],
         {
           commitment: 'confirmed',
           skipPreflight: true,
@@ -1866,25 +1851,27 @@ console.log(`Required SOL amount: ${Number(pool.reserveSol.toString()) / 1e9}`);
 
       console.log(`Migration successful! Transaction ID: ${txid}`);
 
-      const tx2 = new Transaction()
-      .add(lockLpTokensIx);
+      const allocations = [
+        {
+          address: new PublicKey("6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"),
+          percentage: 80
+        },
+        {
+          address: walletPubkey,
+          percentage: 20
+        }
+      ]
+      const txHashArray = await createPoolAndLockLiquidity(tokenMintPubkey, wsolMintPubkey, tokenAmount, solAmount, config, allocations);
 
-      const txid2 = await sendAndConfirmTransaction(
-        connection,
-        tx2,
-        signers,
-        { commitment: 'confirmed', skipPreflight: true }
-      );
+      console.log(txHashArray)
 
-      console.log(`Lock liquidity successful! Transaction ID: ${txid2}`);
       
+
 
       const updatedToken = await Token.findOneAndUpdate(
         { mintAddress: tokenMint },
         { 
-          migratedToRaydium: true,
-          raydiumPoolState: poolState.toBase58(),
-          raydiumLpMint: lpMint.toBase58()
+          migratedToMeteora: true,
         },
         { new: true }
       );
@@ -1892,9 +1879,7 @@ console.log(`Required SOL amount: ${Number(pool.reserveSol.toString()) / 1e9}`);
 
       res.status(200).json({
         success: true,
-        transactionId: txid,
-        raydiumPoolState: poolState.toBase58(),
-        raydiumLpMint: lpMint.toBase58()
+        transactionId: txHashArray[0]
       });
 
     } catch (error: any) {
@@ -1917,75 +1902,6 @@ console.log(`Required SOL amount: ${Number(pool.reserveSol.toString()) / 1e9}`);
   }
 });
 
-app.post('/api/harvest-raydium-fees', async (req: Request, res: Response) => {
-  try {
-    const { tokenMint, feeNftMint } = req.body;
-
-    if (!tokenMint || !feeNftMint) {
-      res.status(400).json({ error: 'Token mint and Fee NFT mint addresses are required' });
-      return
-    }
-
-    console.log(`Starting fee harvesting for token: ${tokenMint}`);
-
-    const tokenMintPubkey = new PublicKey(tokenMint);
-    const walletPubkey = platformWallet.publicKey;
-    const ammConfigPubkey = new PublicKey("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
-
-    // Get necessary accounts
-    const token = await Token.findOne({ mintAddress: tokenMint });
-    if (!token || !token.raydiumPoolState) {
-      res.status(404).json({ error: 'Token or Raydium pool not found' });
-      return
-    }
-
-    // Create harvest fees instruction
-    const harvestFeesIx = await program.methods
-      .harvestLockedLiquidity()
-      .accounts({
-        creator: walletPubkey,
-        tokenMint: tokenMintPubkey,
-        ammConfig: ammConfigPubkey
-      })
-      .instruction();
-
-    const tx = new Transaction()
-      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }))
-      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }))
-      .add(harvestFeesIx);
-
-    const latestBlockhash = await connection.getLatestBlockhash('confirmed');
-    tx.recentBlockhash = latestBlockhash.blockhash;
-    tx.feePayer = walletPubkey;
-
-    const signers = [platformWallet];
-
-    console.log("Sending harvest fees transaction...");
-    const txid = await sendAndConfirmTransaction(
-      connection,
-      tx,
-      signers,
-      {
-        commitment: 'confirmed',
-        skipPreflight: true,
-      }
-    );
-
-    console.log(`Fee harvesting successful! Transaction ID: ${txid}`);
-
-    res.status(200).json({
-      success: true,
-      transactionId: txid
-    });
-
-  } catch (error: any) {
-    console.error('Error harvesting fees:', error);
-    res.status(500).json({
-      error: 'Fee harvesting failed',
-      details: error.message,
-    });
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

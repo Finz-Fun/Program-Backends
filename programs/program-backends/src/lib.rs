@@ -27,10 +27,6 @@ pub mod ai_agent {
         instructions::add_liquidity(ctx)
     }
 
-    pub fn remove_liquidity(ctx: Context<RemoveLiquidity>, bump: u8) -> Result<()> {
-        instructions::remove_liquidity(ctx, bump)
-    }
-
     pub fn buy(ctx: Context<Buy>, amount: u64) -> Result<()> {
         instructions::buy(ctx, amount)
     }
@@ -39,33 +35,10 @@ pub mod ai_agent {
         instructions::sell(ctx, amount, bump)
     }
 
-    pub fn migrate_to_raydium(
-        ctx: Context<MigrateToRaydium>,
+    pub fn migrate_to_meteora(
+        ctx: Context<MigrateToMeteora>,
     ) -> Result<()> {
-        instructions::migrate_to_raydium(ctx)
-    }
-
-    pub fn initialize_raydium_pool(
-        ctx: Context<CreateCpmmPool>,
-        init_amount_0: u64,
-        init_amount_1: u64,
-    ) -> Result<()> {
-        instructions::raydium_init::CreateCpmmPool::create_cpmm_pool(
-            ctx,
-            init_amount_0,
-            init_amount_1,
-        )
-    }
-
-    pub fn lock_cpmm_liquidity(ctx: Context<LockCpmmLiquidity>) -> Result<()> {
-        ctx.accounts.lock_cpmm_cpi()
-    }
-    pub fn harvest_locked_liquidity(ctx: Context<HarvestLockedLiquidity>) -> Result<()> {
-        ctx.accounts.harvest_cp_fees_cpi()
-    }
-
-    pub fn swap(ctx: Context<Swap>, amount_in: u64, minimum_amount_out: u64) -> Result<()> {
-        instructions::swap::Swap::swap(ctx, amount_in, minimum_amount_out)
+        instructions::migrate_to_meteora(ctx)
     }
 }
 
