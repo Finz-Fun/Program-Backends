@@ -8,7 +8,7 @@ pub mod consts;
 
 use crate::instructions::*;
 
-declare_id!("DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa");
+declare_id!("8sZuVSqHEvhRTn1syQwgbwfwqr8PNjdty4a6o2BzL1ox");
 
 #[program]
 pub mod ai_agent {
@@ -17,22 +17,17 @@ pub mod ai_agent {
         instructions::initialize(ctx, fee)
     }
 
-    pub fn create_pool(ctx: Context<CreateLiquidityPool>) -> Result<()> {
-        instructions::create_pool(ctx)
+    pub fn create_pool_with_liquidity(ctx: Context<CreateLiquidityPool>, creator_fee_wallet: Pubkey) -> Result<()> {
+        instructions::create_pool_with_liquidity(ctx, creator_fee_wallet)
     }
 
-    pub fn add_liquidity(
-        ctx: Context<AddLiquidity>,
-    ) -> Result<()> {
-        instructions::add_liquidity(ctx)
+
+    pub fn buy(ctx: Context<Buy>, amount: u64, min_tokens_out: u64) -> Result<()> {
+        instructions::buy(ctx, amount, min_tokens_out)
     }
 
-    pub fn buy(ctx: Context<Buy>, amount: u64) -> Result<()> {
-        instructions::buy(ctx, amount)
-    }
-
-    pub fn sell(ctx: Context<Sell>, amount: u64, bump: u8) -> Result<()> {
-        instructions::sell(ctx, amount, bump)
+    pub fn sell(ctx: Context<Sell>, amount: u64, bump: u8, min_sol_out: u64) -> Result<()> {
+        instructions::sell(ctx, amount, bump, min_sol_out)
     }
 
     pub fn migrate_to_meteora(

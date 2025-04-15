@@ -1,5 +1,8 @@
 use crate::consts::INITIAL_LAMPORTS_FOR_POOL;
-use crate::consts::PROPORTION;
+use crate::consts::PROPORTION_BASE;
+use crate::consts::PROPORTION_EXP;
+use crate::consts::EXPONENT;
+use crate::consts::MIN_PRICE;
 use crate::errors::CustomError;
 use anchor_lang::solana_program;
 use anchor_lang::{
@@ -14,6 +17,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 #[account]
 pub struct CurveConfiguration {
+    pub authority: Pubkey,
     pub fees: f64,
 }
 
@@ -23,8 +27,8 @@ impl CurveConfiguration {
     // Discriminator (8) + f64 (8)
     pub const ACCOUNT_SIZE: usize = 8 + 32 + 8;
 
-     pub fn new(fees: f64) -> Self {
-        Self { fees }
+     pub fn new(authority: Pubkey, fees: f64) -> Self {
+        Self { authority, fees }
     }
 }
 
@@ -49,6 +53,7 @@ pub struct LiquidityPool {
     pub reserve_sol: u64,
     pub bump: u8,
     pub migrated_to_meteora: bool, // Tracks migration status
+    pub creator_fee_wallet: Pubkey
 }
 
 impl LiquidityPool {
@@ -57,10 +62,10 @@ impl LiquidityPool {
 
     // Discriminator (8) + creator (32) + token (32) + totalsupply (8)
     // + reserve_token (8) + reserve_sol (8) + Bump (1) + migrated_to_raydium (1)
-    pub const ACCOUNT_SIZE: usize = 8 + 32 + 32 + 8 + 8 + 8 + 1 + 1;
+    pub const ACCOUNT_SIZE: usize = 8 + 32 + 32 + 8 + 8 + 8 + 1 + 1 + 32;
 
     // Constructor to initialize a LiquidityPool
-    pub fn new(creator: Pubkey, token: Pubkey, bump: u8) -> Self {
+    pub fn new(creator: Pubkey, token: Pubkey, bump: u8, creator_fee_wallet: Pubkey) -> Self {
         Self {
             creator,
             token,
@@ -69,6 +74,7 @@ impl LiquidityPool {
             reserve_sol: 0_u64,
             bump,
             migrated_to_meteora: false,
+            creator_fee_wallet
         }
     }
 }
@@ -92,21 +98,6 @@ pub trait LiquidityPoolAccount<'info> {
         system_program: &Program<'info, System>,
     ) -> Result<()>;
 
-    // Allows removing liquidity by burning pool shares and receiving back a proportionate amount of tokens
-    fn remove_liquidity(
-        &mut self,
-        token_accounts: (
-            &mut Account<'info, Mint>,
-            &mut Account<'info, TokenAccount>,
-            &mut Account<'info, TokenAccount>,
-        ),
-        pool_sol_account: &mut AccountInfo<'info>,
-        authority: &Signer<'info>,
-        bump: u8,
-        token_program: &Program<'info, Token>,
-        system_program: &Program<'info, System>,
-    ) -> Result<()>;
-
     fn buy(
         &mut self,
         token_accounts: (
@@ -115,12 +106,14 @@ pub trait LiquidityPoolAccount<'info> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        team_account: UncheckedAccount<'info>,
+        platform_fee_wallet1: UncheckedAccount<'info>,
+        creator_fee_wallet: UncheckedAccount<'info>,
         amount: u64,
+        min_tokens_out: u64,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
-        fees:f64
+        fees: f64
     ) -> Result<()>;
 
     fn sell(
@@ -131,13 +124,15 @@ pub trait LiquidityPoolAccount<'info> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        team_account: UncheckedAccount<'info>,
+        platform_fee_wallet1: UncheckedAccount<'info>,
+        creator_fee_wallet: UncheckedAccount<'info>,
         amount: u64,
+        min_sol_out: u64,
         bump: u8,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
-        fees:f64
+        fees: f64
     ) -> Result<()>;
 
     fn transfer_token_from_pool(
@@ -195,6 +190,9 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
     ) -> Result<()> {
+        if self.migrated_to_meteora {
+            return err!(CustomError::AlreadyMigrated);
+        }
         self.transfer_token_to_pool(
             token_accounts.2,
             token_accounts.1,
@@ -215,31 +213,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         Ok(())
     }
 
-    fn remove_liquidity(
-        &mut self,
-        token_accounts: (
-            &mut Account<'info, Mint>,
-            &mut Account<'info, TokenAccount>,
-            &mut Account<'info, TokenAccount>,
-        ),
-        pool_sol_vault: &mut AccountInfo<'info>,
-        authority: &Signer<'info>,
-        bump: u8,
-        token_program: &Program<'info, Token>,
-        system_program: &Program<'info, System>,
-    ) -> Result<()> {
-        self.transfer_token_from_pool(
-            token_accounts.1,
-            token_accounts.2,
-            token_accounts.1.amount as u64,
-            token_program,
-        )?;
-        let amount = pool_sol_vault.to_account_info().lamports() as u64;
-        self.transfer_sol_from_pool(pool_sol_vault, authority, amount, bump, system_program)?;
-
-        Ok(())
-    }
-
     fn buy(
         &mut self,
         token_accounts: (
@@ -248,70 +221,127 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        team_account: UncheckedAccount<'info>,
+        platform_fee_wallet1: UncheckedAccount<'info>,
+        creator_fee_wallet: UncheckedAccount<'info>,
         amount: u64,
+        min_tokens_out: u64,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
         fees: f64
     ) -> Result<()> {
+        if self.migrated_to_meteora {
+            return err!(CustomError::AlreadyMigrated);
+        }
         if amount == 0 {
             return err!(CustomError::InvalidAmount);
         }
-        if self.reserve_token < amount {
-            return err!(CustomError::NotEnoughTokenInVault);
-        }
 
-    
+        // Calculate fees
         let fee_amount = (amount as f64) * (fees / 100.0);
-        let adjusted_amount = (amount as f64) * (1.0 - fees / 100.0);
+        let adjusted_amount = amount as f64 - fee_amount;
 
-        let fee_amount_u64 = fee_amount.round() as u64;
-        let adjusted_amount_u64 = adjusted_amount.round() as u64;
-    
-        let ix = transfer(authority.key, team_account.key, fee_amount_u64);
-        invoke(
-            &ix,
-            &[
-                authority.to_account_info(),
-                team_account.to_account_info(),
-                system_program.to_account_info(),
-            ],
-        )?;
+        let platform_fee1 = fee_amount * 50.0 / 100.0;
+        let creator_fee = fee_amount - platform_fee1;
 
-    
-        let virtual_sol = 25_000_000_000.0; 
+        // Get the current state
+        let current_tokens_sold = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000_000.0;
+        let current_price = (EXPONENT * current_tokens_sold.powf(EXPONENT - 1.0)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE;
         
 
-        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
-            + virtual_sol / 1_000_000_000.0;
+        // Calculate how many tokens to give based on area under the curve
+        // We need to solve for new_tokens_sold where:
+        // integral(current_tokens_sold to new_tokens_sold) = adjusted_amount
+        // For the bonding curve: price = (EXPONENT * x^(EXPONENT-1)) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE
+        // The integral is: (x^EXPONENT) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE*x
+        
+        // Initialize approximation variables
+        let mut tokens_to_buy = adjusted_amount / current_price; // Initial estimate
+        let mut new_tokens_sold = current_tokens_sold + tokens_to_buy / 1_000_000_000.0;
+        
+        // Define the integral function
+        let integral = |x: f64| -> f64 {
+            (x.powf(EXPONENT)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE * x
+        };
+        
+        // Numerical solution - 3 iterations for sufficient accuracy
+        for _ in 0..3 {
+            let area = (integral(new_tokens_sold) - integral(current_tokens_sold)) * 1_000_000_000.0;
+            
+            // If area is close enough to adjusted_amount, break
+            if (area - adjusted_amount).abs() < 0.001 {
+                break;
+            }
+            
+            // Adjust our estimate
+            let scale_factor = adjusted_amount / area;
+            tokens_to_buy *= scale_factor;
+            new_tokens_sold = current_tokens_sold + tokens_to_buy / 1_000_000_000.0;
+        }
+        
 
-        let root_val = (PROPORTION as f64 * adjusted_amount as f64 / 1_000_000_000.0 + bought_amount * bought_amount).sqrt();
+        let amount_out_u64 = tokens_to_buy.round() as u64;
 
-        let amount_out_f64 = (root_val - bought_amount) * 1_000_000.0 * 1_000_000_000.0;
+        if amount_out_u64 < min_tokens_out {
+            return err!(CustomError::SlippageExceeded);
+        }
 
-        let amount_out = amount_out_f64.round() as u64;
 
-        if amount_out > self.reserve_token {
+        if platform_fee1 > 0.0 {
+            let ix = transfer(authority.key, platform_fee_wallet1.key, platform_fee1.round() as u64);
+            invoke(
+                &ix,
+                &[
+                    authority.to_account_info(),
+                    platform_fee_wallet1.to_account_info(),
+                    system_program.to_account_info(),
+                ],
+            )?;
+        }
+
+        if creator_fee > 0.0 {
+            let ix = transfer(authority.key, creator_fee_wallet.key, creator_fee.round() as u64);
+            invoke(
+                &ix,
+                &[
+                    authority.to_account_info(),
+                    creator_fee_wallet.to_account_info(),
+                    system_program.to_account_info(),
+                ],
+            )?;
+        }
+
+        if amount_out_u64 > self.reserve_token {
             return err!(CustomError::NotEnoughTokenInVault);
         }
 
-        self.reserve_sol += adjusted_amount_u64;
-        self.reserve_token -= amount_out;
+        self.reserve_sol += adjusted_amount.round() as u64;
+        self.reserve_token -= amount_out_u64;
 
+        // Transfer assets
+        self.transfer_sol_to_pool(authority, pool_sol_vault, adjusted_amount.round() as u64, system_program)?;
+        self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out_u64, token_program)?;
+        
+ 
+        let new_price = (EXPONENT * new_tokens_sold.powf(EXPONENT - 1.0)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE;
+        let mcap = new_price * 1_000_000_000.0;
 
-        self.transfer_sol_to_pool(authority, pool_sol_vault, adjusted_amount_u64, system_program)?;
-        self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out, token_program)?;
-        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"BUY\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
-        token_accounts.0.key(),
-        amount,
-        amount_out,
-        authority.key()
-    );
-       msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{}}}",
-        token_accounts.0.key(),
-        (self.reserve_sol + virtual_sol.round() as u64)
-    );
+        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"BUY\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\",\"price\":{:.9}}}",
+            token_accounts.0.key(),
+            amount,
+            amount_out_u64,
+            authority.key(),
+            new_price
+        );
+        
+        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}}}",
+            token_accounts.0.key(),
+            mcap
+        );
+
+        if self.reserve_sol > 85_000_000_000 {
+            msg!("START MIGRATION");
+        }
         Ok(())
     }
 
@@ -323,76 +353,132 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        team_account: UncheckedAccount<'info>,
+        platform_fee_wallet1: UncheckedAccount<'info>,
+        creator_fee_wallet: UncheckedAccount<'info>,
         amount: u64,
+        min_sol_out: u64,
         bump: u8,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
         fees: f64
     ) -> Result<()> {
+        if self.migrated_to_meteora {
+            return err!(CustomError::AlreadyMigrated);
+        }
         if amount == 0 {
             return err!(CustomError::InvalidAmount);
         }
 
-        let virtual_sol = 25_000_000_000.0; 
 
-        let bought_amount = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000.0 / 1_000_000_000.0 
-            + virtual_sol / 1_000_000_000.0;
+        let current_tokens_sold = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000_000.0;
+        
+        
+        // Calculate new tokens sold after this sale
+        let tokens_to_sell = amount as f64 / 1_000_000_000.0; // Convert to normalized units
+        let new_tokens_sold = current_tokens_sold - tokens_to_sell;
+        
+        // Calculate SOL to receive based on the area under the curve
+        // This ensures fair pricing along the bonding curve
+        let sol_received = if new_tokens_sold <= 0.0 {
+            // Edge case - selling all tokens or more than exist
+            self.reserve_sol as f64
+        } else {
+            // Calculate area under curve between current_tokens_sold and new_tokens_sold
+            // For the bonding curve: price = (EXPONENT * x^(EXPONENT-1)) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE
+            // The integral is: (x^EXPONENT) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE*x
+            let integral = |x: f64| -> f64 {
+                (x.powf(EXPONENT)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE * x
+            };
+            
+            let area = integral(current_tokens_sold) - integral(new_tokens_sold);
+            area * 1_000_000_000.0 // Convert back to lamports
+        };
 
-        let result_amount = (self.total_supply as f64 - self.reserve_token as f64 - amount as f64) / 1_000_000.0 / 1_000_000_000.0 
-            + virtual_sol / 1_000_000_000.0;
+        // Apply fees
+        let amount_before_fee = sol_received;
+        let amount_out = amount_before_fee * (1.0 - fees / 100.0);
+        let fee_amount = amount_before_fee - amount_out;
+        
+        let platform_fee1 = fee_amount * 50.0 / 100.0;
+        let creator_fee = fee_amount - platform_fee1;
+        let amount_out_u64 = amount_out.round() as u64;
 
-        let amount_out_f64 = (bought_amount * bought_amount - result_amount * result_amount) / PROPORTION as f64 * 1_000_000_000.0;
-
-
-        if fees < 0.0 || fees > 100.0 {
-            return err!(CustomError::InvalidFeePercentage);
+        if amount_out_u64 < min_sol_out {
+            return err!(CustomError::SlippageExceeded);
         }
 
-        let adjusted_amount = amount_out_f64 * (1.0 - fees / 100.0);
-        let fee_amount: f64 = amount_out_f64 * (fees / 100.0);
+        if platform_fee1 > 0.0 {
+            system_program::transfer(
+                CpiContext::new_with_signer(
+                    system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: pool_sol_vault.clone(),
+                        to: platform_fee_wallet1.to_account_info().clone(),
+                    },
+                    &[&[
+                        LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
+                        self.token.key().as_ref(),
+                        &[bump],
+                    ]],
+                ),
+                platform_fee1.round() as u64,
+            )?;
+        }
 
- 
-        system_program::transfer(
-            CpiContext::new_with_signer(
-                system_program.to_account_info(),
-                system_program::Transfer {
-                    from: pool_sol_vault.clone(),
-                    to: team_account.to_account_info().clone(),
-                },
-                &[&[
-                    LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
-                    self.token.key().as_ref(),
-                    &[bump],
-                ]],
-            ),
-            fee_amount.round() as u64,
-        )?;
-
-        let amount_out = adjusted_amount.round() as u64;
-
-        if self.reserve_sol < amount_out {
+        if creator_fee > 0.0 {
+            system_program::transfer(
+                CpiContext::new_with_signer(
+                    system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: pool_sol_vault.clone(),
+                        to: creator_fee_wallet.to_account_info().clone(),
+                    },
+                    &[&[
+                        LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
+                        self.token.key().as_ref(),
+                        &[bump],
+                    ]],
+                ),
+                creator_fee.round() as u64,
+            )?;
+        }
+        
+        // Check if there's enough SOL in the vault
+        let total_sol_needed = amount_out_u64 + platform_fee1.round() as u64 + creator_fee.round() as u64;
+        if self.reserve_sol < total_sol_needed {
             return err!(CustomError::NotEnoughSolInVault);
         }
 
- 
         self.transfer_token_to_pool(token_accounts.2, token_accounts.1, amount, authority, token_program)?;
 
         self.reserve_token += amount;
-        self.reserve_sol -= amount_out;
+        self.reserve_sol -= total_sol_needed;
+        self.transfer_sol_from_pool(pool_sol_vault, authority, amount_out_u64, bump, system_program)?;
 
-        self.transfer_sol_from_pool(pool_sol_vault, authority, amount_out, bump, system_program)?;
-        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"SELL\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\"}}",
-        token_accounts.0.key(),
-        amount_out,
-        amount,
-        authority.key()
-    );
-        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{}}}",
-        token_accounts.0.key(),
-        (self.reserve_sol + virtual_sol.round() as u64)
-    );
+        // Calculate new price after the sale
+        let new_price = if new_tokens_sold <= 0.0 {
+            // Edge case: if all tokens are sold or trying to sell more than available
+            MIN_PRICE // Use the minimum price as fallback
+        } else {
+            (EXPONENT * new_tokens_sold.powf(EXPONENT - 1.0)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE
+        };
+
+        let mcap = new_price * 1_000_000_000.0;
+        
+        msg!("TRANSACTION_INFO{{\"token_mint_address\":\"{}\",\"type\":\"SELL\",\"sol_amount\":{},\"token_amount\":{},\"wallet\":\"{}\",\"price\":{:.9}}}",
+            token_accounts.0.key(),
+            amount_out_u64,
+            amount,
+            authority.key(),
+            new_price
+        );
+        
+        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}}}",
+            token_accounts.0.key(),
+            mcap
+        );
+        
         Ok(())
     }
 

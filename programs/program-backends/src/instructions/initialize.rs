@@ -10,7 +10,7 @@ pub fn initialize(
         return err!(CustomError::InvalidFee);
     }
 
-    dex_config.set_inner(CurveConfiguration::new(fees));
+    dex_config.set_inner(CurveConfiguration::new(ctx.accounts.admin.key(), fees));
 
     Ok(())
 }

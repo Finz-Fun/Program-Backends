@@ -1,9 +1,8 @@
 import express, { Request, Response } from 'express';
-import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
-import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction, getAssociatedTokenAddressSync, createCloseAccountInstruction} from "@solana/spl-token"
+import { Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction, SYSVAR_RENT_PUBKEY, SystemProgram, ComputeBudgetProgram, TransactionInstruction, AddressLookupTableProgram, TransactionMessage } from '@solana/web3.js';
+import {TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, mintTo, createMint, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, createInitializeMint2Instruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, createBurnInstruction, getAssociatedTokenAddressSync, createCloseAccountInstruction, createSetAuthorityInstruction, AuthorityType} from "@solana/spl-token"
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {AiAgent, IDL } from './idl/ai_agent';
-import * as dotenv from 'dotenv';
 import { ASSOCIATED_PROGRAM_ID } from '@coral-xyz/anchor/dist/cjs/utils/token';
 import {actionCorsMiddleware, ACTIONS_CORS_HEADERS, BLOCKCHAIN_IDS} from "@solana/actions"
 import cors from "cors";
@@ -22,7 +21,7 @@ import { base58 } from '@metaplex-foundation/umi/serializers'
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
 import Creator from './models/creatorSchema';
-import { connectDB } from './db';
+import { connectCandleDB, connectDB, getCandleDbConnection } from './db';
 import nodeHtmlToImage from 'node-html-to-image';
 import { Token } from './models/tokenSchema';
 import Walletmodel from './models/walletSchema';
@@ -39,9 +38,13 @@ import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import AmmImpl, { PROGRAM_ID, } from '@mercurial-finance/dynamic-amm-sdk';
 import { derivePoolAddressWithConfig } from '@mercurial-finance/dynamic-amm-sdk/dist/cjs/src/amm/utils';
 // import { derivePoolAddressWithConfig } from '@meteora-ag/dynamic-amm-sdk/dist/cjs/src/amm/utils';
+import * as dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
 
 dotenv.config();
+
+const SOLANA_ENVIRONMENT = process.env.SOLANA_ENVIRONMENT || 'devnet';
 
 const app = express();
 app.use((req, res, next) => {
@@ -52,46 +55,25 @@ app.use((req, res, next) => {
   cors()(req, res, next);});
 app.use(express.json());
 
-app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
-app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: BLOCKCHAIN_IDS.devnet,actionVersion:1}));
+app.use('/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS,chainId: (SOLANA_ENVIRONMENT === 'mainnet' ? BLOCKCHAIN_IDS.mainnet : BLOCKCHAIN_IDS.devnet),actionVersion:1}));
+app.use('/api/blinks', actionCorsMiddleware({headers: ACTIONS_CORS_HEADERS, chainId: (SOLANA_ENVIRONMENT === 'mainnet' ? BLOCKCHAIN_IDS.mainnet : BLOCKCHAIN_IDS.devnet),actionVersion:1}));
 
 connectDB()
-
-export const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  socket: {
-    keepAlive: 30000,
-    reconnectStrategy: (retries: number) => {
-      if (retries > 20) {
-        console.error('Max redis reconnection attempts reached');
-        return new Error('Max redis reconnection attempts reached');
-      }
-      return Math.min(retries * 100, 3000);
-    },
-  }
-});
-
-redisClient.connect();
-redisClient.on('error', (error:any) => {
-  console.error('Redis connection error:', error);
-});
-redisClient.on('connect', () => {
-  console.log('Redis connected');
-});
+connectCandleDB()
 
 
 
 const PORT = process.env.PORT || 3000;
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+
+const SOLANA_RPC_URL = SOLANA_ENVIRONMENT === 'mainnet' ? process.env.MAINNET_RPC_URL as string : (process.env.DEVNET_RPC_URL || 'https://api.devnet.solana.com');
 const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY || '';
 
 const platformWallet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(WALLET_PRIVATE_KEY)));
+const platformWallet1 = new PublicKey("7tMpmwww2ZXu8kwNXh88tQS72h2eS86LGm5A3cPJbZZx")
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 const readOnlyProvider = new AnchorProvider(connection, new Wallet(platformWallet), {});
 const programId = new PublicKey(process.env.PROGRAM_ID as any);
 const program = new Program<AiAgent>(IDL, readOnlyProvider);
-
-const curveSeed = "CurveConfiguration"
 const POOL_SEED_PREFIX = "liquidity_pool"
 const SOL_VAULT_PREFIX = "liquidity_sol_vault"
 function sleep(ms: number) {
@@ -109,21 +91,6 @@ type AllocationByAmount = {
   amount: BN;
 };
 
-async function unwrapSol(
-  connection: Connection,
-  wallet: Keypair,
-  tokenAccount: PublicKey
-): Promise<void> {
-  const unwrapTransaction = new Transaction().add(
-      createCloseAccountInstruction(
-          tokenAccount,
-          wallet.publicKey,
-          wallet.publicKey
-      )
-  );
-  await sendAndConfirmTransaction(connection, unwrapTransaction, [wallet]);
-  console.log("✅ - Step 4: SOL unwrapped");
-}
 
 function fromAllocationsToAmount(lpAmount: BN, allocations: AllocationByPercentage[]): AllocationByAmount[] {
   const sumPercentage = allocations.reduce((partialSum, a) => partialSum + a.percentage, 0);
@@ -622,22 +589,17 @@ async function generateTweetImage(tweetData: TweetData): Promise<Buffer> {
 //     const tx = new Transaction()
 //     .add(
 //       await program.methods
-//         .initialize(1)
+//         .initialize(2)
 //         .accounts({
-//           dexConfigurationAccount: curveConfig,
-//           admin: wallet.publicKey,
-//           rent: SYSVAR_RENT_PUBKEY,
-//           systemProgram: SystemProgram.programId
+//           admin: platformWallet.publicKey,
 //         })
 //         .instruction()
 //     )
-//     tx.feePayer = wallet.publicKey
+//     tx.feePayer = platformWallet.publicKey
 //     tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
 //     console.log(await connection.simulateTransaction(tx))
-//     const sig = await sendAndConfirmTransaction(connection, tx, [wallet], { skipPreflight: true })
+//     const sig = await sendAndConfirmTransaction(connection, tx, [platformWallet], { skipPreflight: true })
 //     console.log("Successfully initialized : ", `https://solscan.io/tx/${sig}?cluster=devnet`)
-//     let pool = await program.account.curveConfiguration.fetch(curveConfig)
-//     console.log("Pool State : ", pool)
 
 //     res.status(200).send({ message: 'Initialization successful' });
 //   } catch (error:any) {
@@ -710,7 +672,6 @@ app.post("/create-token", async (req, res) => {
     //   connection,
     //   platformWallet,
     //   mint,
-    //   platformWallet.publicKey,
     //   0,
     //   null
     // );
@@ -737,6 +698,9 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
     const { mintAddress, solAmount, account} = req.body; 
 
     const token = await Token.findOne({mintAddress})
+    if(!token){
+      throw new Error("Token not found")
+    }
     const secretKey = token?.secretKey as string
     const secretKeyUint8Array = Uint8Array.from(
       Buffer.from(secretKey, 'base64')
@@ -744,8 +708,11 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
     const mintsecretpair = Keypair.fromSecretKey(secretKeyUint8Array);
     const mintSecretKey = mintsecretpair.secretKey
     const user = new PublicKey(account);
-
-    const umi = createUmi("https://api.devnet.solana.com")
+    const creator = await Creator.findOne({twitterId: token?.creator})
+    if(!creator){
+      throw new Error("Creator not found")
+    }
+    const umi = createUmi(SOLANA_RPC_URL)
 	  .use(mplTokenMetadata())
 	  .use(mplToolbox());
     
@@ -829,12 +796,13 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
   //     mintKeypair.publicKey,
   //     platformWallet.publicKey,
   //     AuthorityType.MintTokens,
-  //     0
+  //     null
   // )
    
   // createMint(connection, platformWallet, platformWallet.publicKey, null, 9, mintKeypair)
 
    const lamports = await getMinimumBalanceForRentExemptMint(connection);
+
     const tx = new Transaction()
     .add(
       SystemProgram.createAccount({
@@ -850,48 +818,24 @@ app.post("/create-add-liquidity-transaction", async (req, res) => {
     )
 
 
-    tx.add(...metadataInstructions)
-    // if (!tokenAccountInfo) {
-    //   tx.add(
-    //     createAssociatedTokenAccountInstruction(
-    //       user,
-    //       userTokenAccount,
-    //       user,
-    //       mintKeypair.publicKey
-    //     )
-    //   );
-    // }
-
-    
+    tx.add(...metadataInstructions)    
       tx.add(
-      //   createAssociatedTokenAccountInstruction(
-      //     user,                
-      //     poolTokenAccount,    
-      //     poolPda,          
-      //     mintKeypair.publicKey               
-      // ),
         await program.methods
-          .createPool()
+          .createPoolWithLiquidity(new PublicKey(creator.walletAddress as string))
           .accounts({
             tokenMint: mintKeypair.publicKey,
             payer: user,
             admin: platformWallet.publicKey
           })
           .instruction(),
-        await program.methods
-          .addLiquidity()
-          .accounts({
-          tokenMint: mintKeypair.publicKey,
-          platformAuthority: platformWallet.publicKey,
-          user:user
-          })
-          .instruction(),
           // mintAuthorityInstruction,
         await program.methods
-          .buy(new BN(buyAmount.toString()))
+          .buy(new BN(buyAmount.toString()), new BN(0))
           .accounts({ 
             tokenMint: mintKeypair.publicKey,
-            user: user
+            user: user,
+            platformFeeWallet1: platformWallet1,
+            creatorFeeWallet: new PublicKey(creator.walletAddress as string)
           })
           .instruction()
       );
@@ -931,10 +875,36 @@ app.post('/api/:tokenMint/buy', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const {amount} = req.query
-    const {account} = req.body;
+    const {account, minTokensOut: minTokensOutString} = req.body;
+    console.log("minTokensOutString", minTokensOutString)
+    const minTokensOut = new BN(minTokensOutString);
+    console.log("minTokensOut", minTokensOut)
+
 
     if (!amount) {
       throw new Error('Amount is required');
+    }
+
+    if(!minTokensOut){
+      throw new Error('Min tokens out is required');
+    }
+
+    if(minTokensOut.lt(new BN(0))){
+      throw new Error('Min tokens out must be greater than 0');
+    }
+
+    if(minTokensOut.gt(new BN(1000000000))){
+      throw new Error('Min tokens out must be less than 1000000000');
+    }
+
+    const token = await Token.findOne({mintAddress: tokenMint})
+    if(!token){
+      throw new Error('Token not found');
+    }
+
+    const creator = await Creator.findOne({twitterId: token?.creator})
+    if(!creator){
+      throw new Error('Creator not found');
     }
 
     const userPubkey = new PublicKey(account);
@@ -987,10 +957,12 @@ app.post('/api/:tokenMint/buy', async (req: Request, res: Response) => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
       await program.methods
-        .buy(new BN(amountInLamports))
+        .buy(new BN(amountInLamports), new BN(minTokensOut))
         .accounts({
           tokenMint: mint,
-          user: userPubkey
+          user: userPubkey,
+          platformFeeWallet1: platformWallet1,
+          creatorFeeWallet: new PublicKey(creator.walletAddress as string)
         })
         .instruction()
     );
@@ -1023,12 +995,35 @@ app.post('/api/:tokenMint/sell', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const { amount } = req.query;
-    const { account } = req.body;
-      
-    // console.log('Sell request:', { tokenMint, account, amount });
+    const { account, minSolOut: minSolOutString } = req.body;
+    console.log("minSolOutString", minSolOutString)
+    const minSolOut = new BN(minSolOutString);
+    console.log("minSolOut", minSolOut)
 
     if (!amount) {
       throw new Error('amount is required');
+    }
+
+    if(!minSolOut){
+      throw new Error('Min sol out is required');
+    }
+    
+    if(minSolOut.lt(new BN(0))){
+      throw new Error('Min sol out must be greater than 0');
+    }
+
+    if(minSolOut.gt(new BN(50000000000))){
+      throw new Error('Max sol out must be less than 50000000000');
+    }
+
+    const token = await Token.findOne({mintAddress: tokenMint})
+    if(!token){
+      throw new Error('Token not found');
+    }
+    
+    const creator = await Creator.findOne({twitterId: token?.creator})
+    if(!creator){
+      throw new Error('Creator not found');
     }
 
     const userPubkey = new PublicKey(account);
@@ -1085,10 +1080,12 @@ app.post('/api/:tokenMint/sell', async (req: Request, res: Response) => {
         ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
         await program.methods
-          .sell(tokenAmount, bump)
+          .sell(tokenAmount, bump, new BN(minSolOut))
           .accounts({
             tokenMint: mint,
-            user: userPubkey
+            user: userPubkey,
+            platformFeeWallet1: platformWallet1,
+            creatorFeeWallet: new PublicKey(creator.walletAddress as string)
           })
           .instruction()
       );
@@ -1318,10 +1315,32 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const {amount} = req.query
-    const {account} = req.body;
+    const {account, minTokensOut} = req.body;
 
     if (!amount) {
       throw new Error('Amount is required');
+    }
+
+    if(!minTokensOut){
+      throw new Error('Min tokens out is required');
+    }
+
+    if(minTokensOut.lt(new BN(0))){
+      throw new Error('Min tokens out must be greater than 0');
+    }
+
+    if(minTokensOut.gt(new BN(1000000000000000000))){
+      throw new Error('Min tokens out must be less than 1000000000000000000');
+    }
+
+    const token = await Token.findOne({mintAddress: tokenMint})
+    if(!token){
+      throw new Error('Token not found');
+    }
+
+    const creator = await Creator.findOne({twitterId: token?.creator})
+    if(!creator){
+      throw new Error('Creator not found');
     }
 
     const userPubkey = new PublicKey(account);
@@ -1371,10 +1390,12 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
       await program.methods
-        .buy(new BN(amountInLamports))
+        .buy(new BN(amountInLamports), new BN(minTokensOut))
         .accounts({
           tokenMint: mint,
-          user: userPubkey
+          user: userPubkey,
+          platformFeeWallet1: platformWallet1,
+          creatorFeeWallet: new PublicKey(creator.walletAddress as string)
         })
         .instruction()
     );
@@ -1400,11 +1421,35 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const { amount, percentage } = req.query;
-    const { account } = req.body;
+    const { account, minSolOut } = req.body;
 
     if (!amount && !percentage) {
       throw new Error('Either amount or percentage is required');
     }
+
+    if(!minSolOut){
+      throw new Error('Min sol out is required');
+    }
+    
+    if(minSolOut.lt(new BN(0))){
+      throw new Error('Min sol out must be greater than 0');
+    }
+
+    if(minSolOut.gt(new BN(50000000000))){
+      throw new Error('Min sol out must be less than 50000000000');
+    }
+
+    const token = await Token.findOne({mintAddress: tokenMint})
+    if(!token){
+      throw new Error('Token not found');
+    }
+    
+    const creator = await Creator.findOne({twitterId: token?.creator})
+    if(!creator){
+      throw new Error('Creator not found');
+    }
+
+    
 
     const userPubkey = new PublicKey(account);
     const mint = new PublicKey(tokenMint);
@@ -1461,10 +1506,12 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
         ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
         await program.methods
-          .sell(tokenAmount, bump)
+          .sell(tokenAmount, bump, new BN(minSolOut))
           .accounts({
             tokenMint: mint,
-            user: userPubkey
+            user: userPubkey,
+            platformFeeWallet1: platformWallet1,
+            creatorFeeWallet: new PublicKey(creator.walletAddress as string)
           })
           .instruction()
       );
@@ -1707,15 +1754,54 @@ app.get("/candles/:tokenMint", async (req, res) => {
   const { start, end } = req.query;
   
   try {
-    const [historicalCandles, currentCandle] = await Promise.all([
-      redisClient.zRange(`candles:${tokenMint}`, Number(start) || 0, Number(end) || -1),
-      redisClient.get(`current_candle:${tokenMint}`)
-    ]);
+    const startTime = Number(start) || 0;
+    const endTime = Number(end) || Math.floor(Date.now() / 1000);
     
-    res.json([
-      ...historicalCandles.map((candle:any) => JSON.parse(candle)),
-      ...(currentCandle ? [JSON.parse(currentCandle)] : [])
-    ]);
+    // Convert Unix timestamps to Date objects for MongoDB time series query
+    const startDate = new Date(startTime * 1000);
+    const endDate = new Date(endTime * 1000);
+    
+    // Use the separate candle DB connection
+    const db = getCandleDbConnection().useDb('candles');
+ 
+    const historicalCandles = await db.collection('candles').aggregate([
+      { 
+        $match: {
+          m: tokenMint, 
+          t: { $gte: startDate, $lte: endDate }
+        }
+      },
+      { 
+        $sort: { t: 1 } 
+      },
+      {
+        // Convert Date objects back to Unix timestamps for the frontend
+        $addFields: {
+          t: { $divide: [{ $toLong: "$t" }, 1000] }
+        }
+      },
+      { 
+        $project: {
+          _id: 0,
+          t: 1, 
+          o: 1, 
+          h: 1, 
+          l: 1, 
+          c: 1
+        }
+      }
+    ]).toArray();
+    
+    const currentCandleDoc = await db.collection('current_candles').findOne(
+      { m: tokenMint },
+      { projection: { _id: 0, candle: 1 } }
+    );
+    
+    const response = [
+      ...historicalCandles,
+      ...(currentCandleDoc?.candle ? [currentCandleDoc.candle] : [])
+    ];
+    res.json(response);
   } catch (error:any) {
     console.error('Error fetching candles:', error);
     res.status(500).json({ error: "Failed to fetch candles" });
@@ -1768,7 +1854,9 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
        return
     }
 
-    console.log(`Starting Raydium migration for token: ${tokenMint}`);
+
+
+    console.log(`Starting Meteora migration for token: ${tokenMint}`);
 
     const tokenMintPubkey = new PublicKey(tokenMint);
     const wsolMintPubkey = NATIVE_MINT;
@@ -1781,7 +1869,16 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
       return
     }
 
-    // const secretKey = bs58.decode(token.secretKey as string);
+    if(token.migratedToMeteora){
+      res.status(400).json({ error: 'Token already migrated to Meteora' });
+      return
+    }
+
+    const creator = await Creator.findOne({twitterId: token.creator});
+    if(!creator){
+      res.status(404).json({ error: 'Creator not found' });
+      return
+    }
     const secretKey = Uint8Array.from(
       Buffer.from(token.secretKey as string, 'base64')
     );
@@ -1798,7 +1895,7 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
     const pool = await program.account.liquidityPool.fetch(poolPda);
     console.log(pool)
     if (pool.migratedToMeteora) {
-      res.status(400).json({ error: 'Pool already migrated to Raydium' });
+      res.status(400).json({ error: 'Pool already migrated to Meteora' });
       return
     }
 
@@ -1806,7 +1903,6 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
       res.status(403).json({ error: 'Only pool creator can migrate' });
       return
     }
-    const baseAta = await getOrCreateAssociatedTokenAccount(connection, platformWallet, NATIVE_MINT, walletPubkey);
     // Step 1: Migrate to Raydium (transfer SOL and burn tokens)
     const migrateIx = await program.methods
       .migrateToMeteora()
@@ -1823,7 +1919,7 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
     const decimalMultiplier = new BN(10).pow(new BN(9));
     const tokenAmount = tokenBase.mul(decimalMultiplier);
 
-    const config = new PublicKey("BdfD7rrTZEWmf8UbEBPVpvM3wUqyrR8swjAy5SNT8gJ2");
+    const config =  SOLANA_ENVIRONMENT === 'mainnet' ? new PublicKey("5hB9XMUWdMwA3sDhW7msjPiu3UeFbHyEAurmJC2XrQ93") : new PublicKey("BdfD7rrTZEWmf8UbEBPVpvM3wUqyrR8swjAy5SNT8gJ2");
 
     const tx = new Transaction()
     .add(migrateIx);
@@ -1853,12 +1949,12 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
 
       const allocations = [
         {
-          address: new PublicKey("6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"),
-          percentage: 80
+          address: new PublicKey(creator.walletAddress as string),
+          percentage: 50
         },
         {
-          address: walletPubkey,
-          percentage: 20
+          address: platformWallet1,
+          percentage: 50
         }
       ]
       const txHashArray = await createPoolAndLockLiquidity(tokenMintPubkey, wsolMintPubkey, tokenAmount, solAmount, config, allocations);
@@ -1901,6 +1997,58 @@ app.post('/api/migrate-to-meteora', async (req: Request, res: Response) => {
     return
   }
 });
+
+
+// async function createLookupTable() {
+//   // Create a new lookup table
+//   const slot = await connection.getSlot();
+//   const [lookupTableInst, lookupTableAddr] = AddressLookupTableProgram.createLookupTable({
+//     authority: platformWallet.publicKey,
+//     payer: platformWallet.publicKey,
+//     recentSlot: slot,
+//   });
+  
+//   // Addresses to add to lookup table - add ALL commonly used addresses
+//   const addressesToAdd = [
+//     platformWallet.publicKey,
+//     platformWallet1,
+//     platformWallet2,
+//     // Add any other frequent addresses
+//   ];
+  
+//   // Create and send transaction to create lookup table
+//   const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+//     payer: platformWallet.publicKey,
+//     authority: platformWallet.publicKey,
+//     lookupTable: lookupTableAddr,
+//     addresses: addressesToAdd,
+//   });
+  
+//   const lookupTableTx = new Transaction()
+//     .add(lookupTableInst)
+//     .add(extendInstruction);
+  
+//   lookupTableTx.feePayer = platformWallet.publicKey;
+//   lookupTableTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  
+//   const signature = await sendAndConfirmTransaction(
+//     connection, 
+//     lookupTableTx, 
+//     [platformWallet]
+//   );
+  
+//   console.log(`Lookup table created with address: ${lookupTableAddr.toBase58()}`);
+//   console.log(`Transaction signature: ${signature}`);
+  
+//   return lookupTableAddr.toBase58();
+// }
+
+// // Run this function once
+// createLookupTable().then(address => {
+//   console.log('SAVE THIS ADDRESS IN YOUR CONFIG:', address);
+// }).catch(error => {
+//   console.error('Error creating lookup table:', error);
+// });
 
 
 app.listen(PORT, () => {

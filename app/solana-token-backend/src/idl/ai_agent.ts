@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/ai_agent.json`.
  */
 export type AiAgent = {
-  "address": "DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa",
+  "address": "8sZuVSqHEvhRTn1syQwgbwfwqr8PNjdty4a6o2BzL1ox",
   "metadata": {
     "name": "aiAgent",
     "version": "0.1.0",
@@ -13,298 +13,6 @@ export type AiAgent = {
     "description": "Created with Anchor"
   },
   "instructions": [
-    {
-      "name": "addLiquidity",
-      "discriminator": [
-        181,
-        157,
-        89,
-        67,
-        143,
-        182,
-        52,
-        72
-      ],
-      "accounts": [
-        {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  113,
-                  117,
-                  105,
-                  100,
-                  105,
-                  116,
-                  121,
-                  95,
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenMint",
-          "writable": true
-        },
-        {
-          "name": "poolTokenAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "pool"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "platformTokenAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "platformAuthority"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "poolSolVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  113,
-                  117,
-                  105,
-                  100,
-                  105,
-                  116,
-                  121,
-                  95,
-                  115,
-                  111,
-                  108,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "platformAuthority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "user",
-          "signer": true
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        }
-      ],
-      "args": []
-    },
     {
       "name": "buy",
       "discriminator": [
@@ -622,31 +330,69 @@ export type AiAgent = {
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "teamAccount",
-          "writable": true,
-          "address": "6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"
+          "name": "platformFeeWallet1",
+          "writable": true
+        },
+        {
+          "name": "creatorFeeWallet",
+          "writable": true
         }
       ],
       "args": [
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "minTokensOut",
+          "type": "u64"
         }
       ]
     },
     {
-      "name": "createPool",
+      "name": "createPoolWithLiquidity",
       "discriminator": [
-        233,
-        146,
-        209,
-        142,
-        207,
-        104,
-        64,
-        188
+        46,
+        16,
+        45,
+        7,
+        175,
+        14,
+        107,
+        200
       ],
       "accounts": [
+        {
+          "name": "dexConfigurationAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  117,
+                  114,
+                  118,
+                  101,
+                  67,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
         {
           "name": "pool",
           "writable": true,
@@ -773,12 +519,140 @@ export type AiAgent = {
           }
         },
         {
+          "name": "platformTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "poolSolVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ]
+          }
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
         },
         {
-          "name": "admin"
+          "name": "admin",
+          "writable": true,
+          "signer": true
         },
         {
           "name": "tokenProgram",
@@ -797,7 +671,12 @@ export type AiAgent = {
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "creatorFeeWallet",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "initialize",
@@ -1283,9 +1162,12 @@ export type AiAgent = {
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "teamAccount",
-          "writable": true,
-          "address": "6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"
+          "name": "platformFeeWallet1",
+          "writable": true
+        },
+        {
+          "name": "creatorFeeWallet",
+          "writable": true
         }
       ],
       "args": [
@@ -1296,6 +1178,10 @@ export type AiAgent = {
         {
           "name": "bump",
           "type": "u8"
+        },
+        {
+          "name": "minSolOut",
+          "type": "u64"
         }
       ]
     }
@@ -1422,7 +1308,7 @@ export type AiAgent = {
     {
       "code": 6018,
       "name": "alreadyMigrated",
-      "msg": "Pool already migrated to Raydium"
+      "msg": "Pool already migrated to Meteora"
     },
     {
       "code": 6019,
@@ -1433,6 +1319,21 @@ export type AiAgent = {
       "code": 6020,
       "name": "calculationError",
       "msg": "Calculation error occurred during migration"
+    },
+    {
+      "code": 6021,
+      "name": "unauthorized",
+      "msg": "unauthorized"
+    },
+    {
+      "code": 6022,
+      "name": "slippageExceeded",
+      "msg": "Slippage exceeded"
+    },
+    {
+      "code": 6023,
+      "name": "unauthorizedPlatformAuthority",
+      "msg": "Unauthorized: Only the platform authority can perform this action"
     }
   ],
   "types": [
@@ -1441,6 +1342,10 @@ export type AiAgent = {
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
           {
             "name": "fees",
             "type": "f64"
@@ -1480,6 +1385,10 @@ export type AiAgent = {
           {
             "name": "migratedToMeteora",
             "type": "bool"
+          },
+          {
+            "name": "creatorFeeWallet",
+            "type": "pubkey"
           }
         ]
       }
@@ -1489,7 +1398,7 @@ export type AiAgent = {
 
 
 export const IDL:AiAgent = {
-  "address": "DHr5zADHP6mkJRZiZKoMnadQyqWKfq6kxXG7iZAcipNa",
+  "address": "8sZuVSqHEvhRTn1syQwgbwfwqr8PNjdty4a6o2BzL1ox",
   "metadata": {
     "name": "aiAgent",
     "version": "0.1.0",
@@ -1497,298 +1406,6 @@ export const IDL:AiAgent = {
     "description": "Created with Anchor"
   },
   "instructions": [
-    {
-      "name": "addLiquidity",
-      "discriminator": [
-        181,
-        157,
-        89,
-        67,
-        143,
-        182,
-        52,
-        72
-      ],
-      "accounts": [
-        {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  113,
-                  117,
-                  105,
-                  100,
-                  105,
-                  116,
-                  121,
-                  95,
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenMint",
-          "writable": true
-        },
-        {
-          "name": "poolTokenAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "pool"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "platformTokenAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "platformAuthority"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "poolSolVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  113,
-                  117,
-                  105,
-                  100,
-                  105,
-                  116,
-                  121,
-                  95,
-                  115,
-                  111,
-                  108,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "platformAuthority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "user",
-          "signer": true
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        }
-      ],
-      "args": []
-    },
     {
       "name": "buy",
       "discriminator": [
@@ -2106,31 +1723,69 @@ export const IDL:AiAgent = {
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "teamAccount",
-          "writable": true,
-          "address": "6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"
+          "name": "platformFeeWallet1",
+          "writable": true
+        },
+        {
+          "name": "creatorFeeWallet",
+          "writable": true
         }
       ],
       "args": [
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "minTokensOut",
+          "type": "u64"
         }
       ]
     },
     {
-      "name": "createPool",
+      "name": "createPoolWithLiquidity",
       "discriminator": [
-        233,
-        146,
-        209,
-        142,
-        207,
-        104,
-        64,
-        188
+        46,
+        16,
+        45,
+        7,
+        175,
+        14,
+        107,
+        200
       ],
       "accounts": [
+        {
+          "name": "dexConfigurationAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  117,
+                  114,
+                  118,
+                  101,
+                  67,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
         {
           "name": "pool",
           "writable": true,
@@ -2257,12 +1912,140 @@ export const IDL:AiAgent = {
           }
         },
         {
+          "name": "platformTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "poolSolVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  113,
+                  117,
+                  105,
+                  100,
+                  105,
+                  116,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tokenMint"
+              }
+            ]
+          }
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
         },
         {
-          "name": "admin"
+          "name": "admin",
+          "writable": true,
+          "signer": true
         },
         {
           "name": "tokenProgram",
@@ -2281,7 +2064,12 @@ export const IDL:AiAgent = {
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "creatorFeeWallet",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "initialize",
@@ -2767,9 +2555,12 @@ export const IDL:AiAgent = {
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "teamAccount",
-          "writable": true,
-          "address": "6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"
+          "name": "platformFeeWallet1",
+          "writable": true
+        },
+        {
+          "name": "creatorFeeWallet",
+          "writable": true
         }
       ],
       "args": [
@@ -2780,6 +2571,10 @@ export const IDL:AiAgent = {
         {
           "name": "bump",
           "type": "u8"
+        },
+        {
+          "name": "minSolOut",
+          "type": "u64"
         }
       ]
     }
@@ -2906,7 +2701,7 @@ export const IDL:AiAgent = {
     {
       "code": 6018,
       "name": "alreadyMigrated",
-      "msg": "Pool already migrated to Raydium"
+      "msg": "Pool already migrated to Meteora"
     },
     {
       "code": 6019,
@@ -2917,6 +2712,21 @@ export const IDL:AiAgent = {
       "code": 6020,
       "name": "calculationError",
       "msg": "Calculation error occurred during migration"
+    },
+    {
+      "code": 6021,
+      "name": "unauthorized",
+      "msg": "unauthorized"
+    },
+    {
+      "code": 6022,
+      "name": "slippageExceeded",
+      "msg": "Slippage exceeded"
+    },
+    {
+      "code": 6023,
+      "name": "unauthorizedPlatformAuthority",
+      "msg": "Unauthorized: Only the platform authority can perform this action"
     }
   ],
   "types": [
@@ -2925,6 +2735,10 @@ export const IDL:AiAgent = {
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
           {
             "name": "fees",
             "type": "f64"
@@ -2964,6 +2778,10 @@ export const IDL:AiAgent = {
           {
             "name": "migratedToMeteora",
             "type": "bool"
+          },
+          {
+            "name": "creatorFeeWallet",
+            "type": "pubkey"
           }
         ]
       }

@@ -46,15 +46,17 @@ connection.onLogs(PROGRAM_ID, async (logs, ctx) => {
       timestamp: timestamp,
       solAmount: transactionInfo.sol_amount / LAMPORTS_PER_SOL,
       walletAddress: transactionInfo.wallet,
-      price: (((transactionInfo.sol_amount / LAMPORTS_PER_SOL) / (transactionInfo.token_amount/1E9)).toFixed(10)),
+      price: transactionInfo.price,
       tokenAmount: transactionInfo.token_amount/1E9,
       signature: logs.signature
     };
+
     const update = {
       m: chartData.token_mint_address,
-      p: chartData.mcap/1E9,
+      p: chartData.mcap,
       ts: timestampSeconds
     } 
+    console.log(update);
     await Promise.all([transactionQueue.add('transaction', parsedData, {
       attempts: 3,
       backoff: {

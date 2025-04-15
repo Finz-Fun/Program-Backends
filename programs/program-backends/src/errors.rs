@@ -56,7 +56,7 @@ pub enum CustomError {
     #[msg("Pool value is too low for migration")]
     PoolValueTooLow,
     
-    #[msg("Pool already migrated to Raydium")]
+    #[msg("Pool already migrated to Meteora")]
     AlreadyMigrated,
 
     #[msg("Insufficient SOL or Token liquidity in the pool for migration")]
@@ -64,4 +64,13 @@ pub enum CustomError {
 
     #[msg("Calculation error occurred during migration")]
     CalculationError,
+
+    #[msg("Unauthorized")]
+    Unauthorized,
+
+    #[msg("Slippage exceeded")]
+    SlippageExceeded,
+
+    #[msg("Unauthorized: Only the platform authority can perform this action")]
+    UnauthorizedPlatformAuthority,
 }

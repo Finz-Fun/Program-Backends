@@ -3,13 +3,11 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };
-use anchor_lang::pubkey;
 
-use crate::state::{CurveConfiguration, LiquidityPool, LiquidityPoolAccount};
+use crate::{consts::{PLATFORM_FEE_WALLET1}, state::{CurveConfiguration, LiquidityPool, LiquidityPoolAccount}};
 
-const TEAM_WALLET_PUBKEY: Pubkey = pubkey!("6XF158v9uXWL7dpJnkJFHKpZgzmLXX5HoH4vG5hPsmmP"); 
 
-pub fn sell(ctx: Context<Sell>, amount: u64, bump: u8) -> Result<()> {
+pub fn sell(ctx: Context<Sell>, amount: u64,  bump: u8, min_sol_out: u64) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
 
     let token_one_accounts = (
@@ -22,8 +20,11 @@ pub fn sell(ctx: Context<Sell>, amount: u64, bump: u8) -> Result<()> {
     pool.sell(
         token_one_accounts,
         &mut ctx.accounts.pool_sol_vault,
-        ctx.accounts.team_account.clone(),
+        ctx.accounts.platform_fee_wallet1.clone(),
+        // ctx.accounts.platform_fee_wallet2.clone(),
+        ctx.accounts.creator_fee_wallet.clone(),
         amount,
+        min_sol_out,
         bump,
         &ctx.accounts.user,
         &ctx.accounts.token_program,
@@ -81,8 +82,16 @@ pub struct Sell<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
 
-    /// CHECK: Safe. Team account validated
-    #[account(mut, address = TEAM_WALLET_PUBKEY)]
-    pub team_account: UncheckedAccount<'info>
+    /// CHECK: Platform fee wallet 1
+    #[account(mut, address = PLATFORM_FEE_WALLET1)]
+    pub platform_fee_wallet1: UncheckedAccount<'info>,
+    
+    /// CHECK: Platform fee wallet 2
+    // #[account(mut, address = PLATFORM_FEE_WALLET2)]
+    // pub platform_fee_wallet2: UncheckedAccount<'info>,
+    
+    /// CHECK: Creator fee wallet
+    #[account(mut, address = pool.creator_fee_wallet)]
+    pub creator_fee_wallet: UncheckedAccount<'info>,
 
 }

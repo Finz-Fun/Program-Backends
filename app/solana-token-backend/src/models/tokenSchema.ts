@@ -42,24 +42,13 @@ const tokenSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
-  isActive: { 
-    type: Boolean, 
-    default: false 
-  },
   liquidity: {
     type: Boolean,
     default: false
   },
-  migratedToRaydium: {
+  migratedToMeteora: {
     type: Boolean,
     default: false
-  },
-  raydiumPoolState: {
-    type: String,
-  },
-  raydiumLpMint: {
-    type: String,
-    default: null
   }
 });
 
