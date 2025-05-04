@@ -878,7 +878,7 @@ app.post('/api/:tokenMint/buy', async (req: Request, res: Response) => {
     const {account, minTokensOut: minTokensOutString} = req.body;
     console.log("minTokensOutString", minTokensOutString)
     const minTokensOut = new BN(minTokensOutString);
-    console.log("minTokensOut", minTokensOut)
+    console.log("minTokensOut", minTokensOut.toString())
 
 
     if (!amount) {
@@ -893,7 +893,7 @@ app.post('/api/:tokenMint/buy', async (req: Request, res: Response) => {
       throw new Error('Min tokens out must be greater than 0');
     }
 
-    if(minTokensOut.gt(new BN(1000000000))){
+    if(minTokensOut.gt(new BN(1000000000).mul(new BN(1000000000)))){
       throw new Error('Min tokens out must be less than 1000000000');
     }
 
@@ -998,7 +998,8 @@ app.post('/api/:tokenMint/sell', async (req: Request, res: Response) => {
     const { account, minSolOut: minSolOutString } = req.body;
     console.log("minSolOutString", minSolOutString)
     const minSolOut = new BN(minSolOutString);
-    console.log("minSolOut", minSolOut)
+    console.log("minSolOut", minSolOut.toString())
+    console.log("amount", amount)
 
     if (!amount) {
       throw new Error('amount is required');
@@ -1068,12 +1069,6 @@ app.post('/api/:tokenMint/sell', async (req: Request, res: Response) => {
       const [poolSolVault, bump] = PublicKey.findProgramAddressSync(
         [Buffer.from(SOL_VAULT_PREFIX), mint.toBuffer()],
         program.programId
-      );
-
-      const poolTokenAccount = await getAssociatedTokenAddress(
-        mint,
-        poolPda,
-        true
       );
 
       const tx = new Transaction().add(
@@ -1315,23 +1310,24 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const {amount} = req.query
-    const {account, minTokensOut} = req.body;
+    const {account} = req.body;
+
 
     if (!amount) {
       throw new Error('Amount is required');
     }
 
-    if(!minTokensOut){
-      throw new Error('Min tokens out is required');
-    }
+    // if(!minTokensOut){
+    //   throw new Error('Min tokens out is required');
+    // }
 
-    if(minTokensOut.lt(new BN(0))){
-      throw new Error('Min tokens out must be greater than 0');
-    }
+    // if(minTokensOut.lt(new BN(0))){
+    //   throw new Error('Min tokens out must be greater than 0');
+    // }
 
-    if(minTokensOut.gt(new BN(1000000000000000000))){
-      throw new Error('Min tokens out must be less than 1000000000000000000');
-    }
+    // if(minTokensOut.gt(new BN(1000000000000000000))){
+    //   throw new Error('Min tokens out must be less than 1000000000000000000');
+    // }
 
     const token = await Token.findOne({mintAddress: tokenMint})
     if(!token){
@@ -1390,7 +1386,7 @@ app.post('/api/blinks/:tokenMint/buy', async (req: Request, res: Response) => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
       await program.methods
-        .buy(new BN(amountInLamports), new BN(minTokensOut))
+        .buy(new BN(amountInLamports), new BN(0))
         .accounts({
           tokenMint: mint,
           user: userPubkey,
@@ -1421,23 +1417,23 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const { amount, percentage } = req.query;
-    const { account, minSolOut } = req.body;
+    const { account } = req.body;
 
     if (!amount && !percentage) {
       throw new Error('Either amount or percentage is required');
     }
 
-    if(!minSolOut){
-      throw new Error('Min sol out is required');
-    }
+    // if(!minSolOut){
+    //   throw new Error('Min sol out is required');
+    // }
     
-    if(minSolOut.lt(new BN(0))){
-      throw new Error('Min sol out must be greater than 0');
-    }
+    // if(minSolOut.lt(new BN(0))){
+    //   throw new Error('Min sol out must be greater than 0');
+    // }
 
-    if(minSolOut.gt(new BN(50000000000))){
-      throw new Error('Min sol out must be less than 50000000000');
-    }
+    // if(minSolOut.gt(new BN(50000000000))){
+    //   throw new Error('Min sol out must be less than 50000000000');
+    // }
 
     const token = await Token.findOne({mintAddress: tokenMint})
     if(!token){
@@ -1506,7 +1502,7 @@ app.post('/api/blinks/:tokenMint/sell', async (req: Request, res: Response) => {
         ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
         await program.methods
-          .sell(tokenAmount, bump, new BN(minSolOut))
+          .sell(tokenAmount, bump, new BN(0))
           .accounts({
             tokenMint: mint,
             user: userPubkey,

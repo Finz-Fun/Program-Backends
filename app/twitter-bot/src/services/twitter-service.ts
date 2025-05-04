@@ -445,11 +445,11 @@ export class TwitterService {
             if (result.success) {
               await this.replyToTweet(tweet.id,
                 `⏰ Auto-created your token ${autoChoice.name} (${autoChoice.ticker})!\n\n` +
-                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
+                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=mainnet-beta\n\n` +
                 `Start trading now! 🚀`);
               
               await this.replyToTweet(tweet.parentTweetId as string,
-                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n`);
+                `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=mainnet-beta\n\n`);
               
               state.isCompleted = true;
               this.tweetStates.delete(state.parentTweetId);
@@ -523,11 +523,11 @@ export class TwitterService {
                         await this.replyToTweet(tweet.id,
                           `🎉 Congratulations! Your token ${choice.name} (${choice.ticker}) has been created!\n\n` +
                           `Token address: ${result.tokenMint}\n` +
-                          `Trade ${choice.ticker} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n` +
+                          `Trade ${choice.ticker} here:\n https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=mainnet-beta\n\n` +
                           `Start trading your token now! 🚀`);
                         
                         await this.replyToTweet(tweet.parentTweetId as string,
-                            `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=devnet\n\n`);
+                            `https://dial.to/?action=solana-action:https://api.finz.fun/blinks/${result.tokenMint}&cluster=mainnet-beta\n\n`);
                         
                         state.isCompleted = true;
                         this.tweetStates.delete(state.parentTweetId);

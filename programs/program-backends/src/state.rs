@@ -249,13 +249,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         let current_price = (EXPONENT * current_tokens_sold.powf(EXPONENT - 1.0)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE;
         
 
-        // Calculate how many tokens to give based on area under the curve
-        // We need to solve for new_tokens_sold where:
-        // integral(current_tokens_sold to new_tokens_sold) = adjusted_amount
-        // For the bonding curve: price = (EXPONENT * x^(EXPONENT-1)) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE
-        // The integral is: (x^EXPONENT) / (PROPORTION_BASE * 10^PROPORTION_EXP) + MIN_PRICE*x
-        
-        // Initialize approximation variables
         let mut tokens_to_buy = adjusted_amount / current_price; // Initial estimate
         let mut new_tokens_sold = current_tokens_sold + tokens_to_buy / 1_000_000_000.0;
         
@@ -264,7 +257,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             (x.powf(EXPONENT)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE * x
         };
         
-        // Numerical solution - 3 iterations for sufficient accuracy
         for _ in 0..3 {
             let area = (integral(new_tokens_sold) - integral(current_tokens_sold)) * 1_000_000_000.0;
             
@@ -272,8 +264,7 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             if (area - adjusted_amount).abs() < 0.001 {
                 break;
             }
-            
-            // Adjust our estimate
+                
             let scale_factor = adjusted_amount / area;
             tokens_to_buy *= scale_factor;
             new_tokens_sold = current_tokens_sold + tokens_to_buy / 1_000_000_000.0;
@@ -318,7 +309,7 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.reserve_sol += adjusted_amount.round() as u64;
         self.reserve_token -= amount_out_u64;
 
-        // Transfer assets
+
         self.transfer_sol_to_pool(authority, pool_sol_vault, adjusted_amount.round() as u64, system_program)?;
         self.transfer_token_from_pool(token_accounts.1, token_accounts.2, amount_out_u64, token_program)?;
         
@@ -334,9 +325,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             new_price
         );
         
-        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}}}",
+        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}, \"reserve_token\":{},\"reserve_sol\":{:.3}}}",
             token_accounts.0.key(),
-            mcap
+            mcap,
+            self.reserve_token,
+            self.reserve_sol as f64 / 1e9
         );
 
         if self.reserve_sol > 85_000_000_000 {
@@ -444,7 +437,6 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             )?;
         }
         
-        // Check if there's enough SOL in the vault
         let total_sol_needed = amount_out_u64 + platform_fee1.round() as u64 + creator_fee.round() as u64;
         if self.reserve_sol < total_sol_needed {
             return err!(CustomError::NotEnoughSolInVault);
@@ -456,10 +448,8 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         self.reserve_sol -= total_sol_needed;
         self.transfer_sol_from_pool(pool_sol_vault, authority, amount_out_u64, bump, system_program)?;
 
-        // Calculate new price after the sale
         let new_price = if new_tokens_sold <= 0.0 {
-            // Edge case: if all tokens are sold or trying to sell more than available
-            MIN_PRICE // Use the minimum price as fallback
+            MIN_PRICE 
         } else {
             (EXPONENT * new_tokens_sold.powf(EXPONENT - 1.0)) / (PROPORTION_BASE * 10.0f64.powi(PROPORTION_EXP)) + MIN_PRICE
         };
@@ -474,9 +464,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             new_price
         );
         
-        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}}}",
+        msg!("CHART_DATA{{\"token_mint_address\":\"{}\", \"mcap\":{:.4}, \"reserve_token\":{},\"reserve_sol\":{:.3}}}",
             token_accounts.0.key(),
-            mcap
+            mcap,
+            self.reserve_token,
+            self.reserve_sol as f64 / 1e9
         );
         
         Ok(())
